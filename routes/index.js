@@ -23,5 +23,6 @@ router.use("/goals", require("./goalRoutes"));
 router.use("/training-categories", require("./trainingCategoryRoutes"));
 router.use("/training-documents", require("./trainingDocumentRoutes"));
 router.use("/training-assignments", require("./trainingAssignmentRoutes"));
+router.use("/dashboard", require("./dashboardRoutes"));
 
 module.exports = router;
