@@ -144,3 +144,20 @@ vite.config.ts.timestamp-*
 
 #Phases folder
 phases/
+
+# TeamSync — Phase 1 setup
+node_modules/
+.env
+npm-debug.log
+
+# Phase specs & schema reference — not application code
+phases/
+
+# Uploaded files — keep folder structure, ignore contents
+uploads/**
+!uploads/**/
+!uploads/**/.gitkeep
+
+# Editor/OS
+.DS_Store
+.vscode/
