@@ -14,5 +14,7 @@ router.use("/roles", require("./roleRoutes"));
 router.use("/departments", require("./departmentRoutes"));
 router.use("/permissions", require("./permissionRoutes"));
 router.use("/employees", require("./employeeRoutes"));
+router.use("/shifts", require("./shiftRoutes"));
+router.use("/attendance", require("./attendanceRoutes"));
 
 module.exports = router;

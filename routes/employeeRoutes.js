@@ -10,6 +10,7 @@ const {
   createEmployeeSchema,
   updateEmployeeSchema,
   uploadDocumentSchema,
+  assignShiftSchema,
 } = require("../validations/employeeValidation");
 
 const uploadEmployeeDocument = createUploader("employee-documents");
@@ -37,6 +38,14 @@ router.patch(
   checkPermission("employees", "edit"),
   validate(updateEmployeeSchema),
   employeeController.updateEmployee,
+);
+
+router.patch(
+  "/:id/shift",
+  verifyToken,
+  checkPermission("shifts", "assign"),
+  validate(assignShiftSchema),
+  employeeController.assignShift,
 );
 
 router.post(

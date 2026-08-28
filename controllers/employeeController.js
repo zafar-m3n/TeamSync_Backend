@@ -282,6 +282,28 @@ const deleteDocument = catchAsync(async (req, res) => {
   return sendSuccess(res, 200, { message: "Document deleted" });
 });
 
+const assignShift = catchAsync(async (req, res) => {
+  const employee = await db.Employee.findByPk(req.params.id);
+
+  if (!employee) {
+    throw new AppError("Employee not found", 404, "NOT_FOUND");
+  }
+
+  const { shiftId } = req.body;
+
+  if (shiftId != null) {
+    const shift = await db.Shift.findByPk(shiftId);
+    if (!shift) {
+      throw new AppError("Shift not found", 404, "SHIFT_NOT_FOUND");
+    }
+  }
+
+  employee.shiftId = shiftId;
+  await employee.save();
+
+  return sendSuccess(res, 200, employee);
+});
+
 module.exports = {
   createEmployee,
   listEmployees,
@@ -291,4 +313,5 @@ module.exports = {
   updateEmployee,
   uploadDocument,
   deleteDocument,
+  assignShift,
 };

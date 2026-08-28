@@ -10,6 +10,7 @@ const errorHandler = require("./middleware/errorHandler");
 const AppError = require("./utils/AppError");
 const { testConnection } = require("./config/database");
 const logger = require("./utils/logger");
+const { scheduleAttendanceCron } = require("./jobs/attendanceCron");
 
 const app = express();
 
@@ -35,6 +36,8 @@ const start = async () => {
   try {
     await testConnection();
     logger.success("Database connection established");
+
+    scheduleAttendanceCron();
 
     app.listen(PORT, () => {
       logger.success(`TeamSync API running on port ${PORT} [${process.env.NODE_TEAMSYNC_NODE_ENV}]`);
