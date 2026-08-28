@@ -16,5 +16,8 @@ router.use("/permissions", require("./permissionRoutes"));
 router.use("/employees", require("./employeeRoutes"));
 router.use("/shifts", require("./shiftRoutes"));
 router.use("/attendance", require("./attendanceRoutes"));
+router.use("/leave-types", require("./leaveTypeRoutes"));
+router.use("/leave-balances", require("./leaveBalanceRoutes"));
+router.use("/leave-requests", require("./leaveRequestRoutes"));
 
 module.exports = router;

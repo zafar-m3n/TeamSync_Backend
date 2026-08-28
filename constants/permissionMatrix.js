@@ -17,6 +17,7 @@ const PERMISSION_MATRIX = [
 
   // Leave Management (Phase 8)
   { module: "leave_types", action: "manage", roles: ["HR", "Admin"] },
+  { module: "leave_types", action: "view", roles: ["Admin", "HR", "Manager", "Employee"] },
   { module: "leave", action: "set_quota", roles: ["HR", "Admin"] },
   { module: "leave", action: "submit", roles: ["Admin", "HR", "Manager", "Employee"] },
   { module: "leave", action: "approve", roles: ["Manager", "HR"] },
