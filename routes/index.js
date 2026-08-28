@@ -19,5 +19,6 @@ router.use("/attendance", require("./attendanceRoutes"));
 router.use("/leave-types", require("./leaveTypeRoutes"));
 router.use("/leave-balances", require("./leaveBalanceRoutes"));
 router.use("/leave-requests", require("./leaveRequestRoutes"));
+router.use("/goals", require("./goalRoutes"));
 
 module.exports = router;

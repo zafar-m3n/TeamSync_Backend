@@ -29,6 +29,7 @@ const PERMISSION_MATRIX = [
 
   // Performance Reviews (Phase 9)
   { module: "goals", action: "create", roles: ["Manager"] },
+  { module: "goals", action: "edit", roles: ["Manager"] },
   { module: "goals", action: "record_actual", roles: ["Manager"] },
   { module: "goals", action: "view_own", roles: ["Admin", "HR", "Manager", "Employee"] },
   { module: "goals", action: "view_team", roles: ["Manager"] },
