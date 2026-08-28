@@ -12,5 +12,6 @@ router.use("/auth", require("./authRoutes"));
 router.use("/users", require("./userRoutes"));
 router.use("/roles", require("./roleRoutes"));
 router.use("/departments", require("./departmentRoutes"));
+router.use("/permissions", require("./permissionRoutes"));
 
 module.exports = router;

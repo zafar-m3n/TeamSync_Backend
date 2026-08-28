@@ -2,6 +2,7 @@ require("dotenv").config();
 const bcrypt = require("bcryptjs");
 const db = require("../models");
 const logger = require("../utils/logger");
+const { PERMISSION_MATRIX } = require("../constants/permissionMatrix");
 
 const BASE_ROLES = [
   {
@@ -60,6 +61,23 @@ const run = async () => {
       });
       logger.success(`Initial Admin user created: ${adminEmail}`);
     }
+
+    const allRoles = await db.Role.findAll({ where: { name: BASE_ROLES.map((r) => r.name) } });
+    const roleByName = Object.fromEntries(allRoles.map((r) => [r.name, r]));
+
+    let permissionCount = 0;
+    for (const entry of PERMISSION_MATRIX) {
+      for (const roleName of Object.keys(roleByName)) {
+        const role = roleByName[roleName];
+        const allowed = entry.roles.includes(roleName);
+        await db.Permission.findOrCreate({
+          where: { roleId: role.id, module: entry.module, action: entry.action },
+          defaults: { allowed },
+        });
+        permissionCount += 1;
+      }
+    }
+    logger.success(`Default permission matrix ensured (${permissionCount} role/module/action rows checked)`);
 
     process.exit(0);
   } catch (err) {
