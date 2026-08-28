@@ -3,6 +3,7 @@ const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 
 const verifyToken = catchAsync(async (req, res, next) => {
+  const db = require("../models");
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -18,9 +19,15 @@ const verifyToken = catchAsync(async (req, res, next) => {
     throw new AppError("Invalid or expired token", 401, "INVALID_TOKEN");
   }
 
+  const user = await db.User.findByPk(decoded.userId);
+
+  if (!user || !user.isActive) {
+    throw new AppError("Account is inactive or no longer exists", 401, "ACCOUNT_INACTIVE");
+  }
+
   req.user = {
-    id: decoded.userId,
-    roleId: decoded.roleId,
+    id: user.id,
+    roleId: user.roleId,
     roleName: decoded.roleName,
   };
 

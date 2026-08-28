@@ -8,11 +8,7 @@ router.get("/health", (req, res) => {
   });
 });
 
-// Later phases mount their module routers here, e.g.:
-// router.use('/departments', require('./department.routes'));
-// router.use('/roles', require('./role.routes'));
-// router.use('/permissions', require('./permission.routes'));
-// router.use('/employees', require('./employee.routes'));
-// ...
+router.use("/auth", require("./authRoutes"));
+router.use("/users", require("./userRoutes"));
 
 module.exports = router;
