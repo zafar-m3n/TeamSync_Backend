@@ -37,6 +37,7 @@ const PERMISSION_MATRIX = [
 
   // Training (Phase 10)
   { module: "training_categories", action: "manage", roles: ["HR", "Admin"] },
+  { module: "training_categories", action: "view", roles: ["Admin", "HR", "Manager", "Employee"] },
   { module: "training", action: "upload", roles: ["Manager"] },
   { module: "training", action: "assign", roles: ["Manager"] },
   { module: "training", action: "remove_assignment", roles: ["Manager", "HR", "Admin"] },

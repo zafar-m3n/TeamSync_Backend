@@ -20,5 +20,8 @@ router.use("/leave-types", require("./leaveTypeRoutes"));
 router.use("/leave-balances", require("./leaveBalanceRoutes"));
 router.use("/leave-requests", require("./leaveRequestRoutes"));
 router.use("/goals", require("./goalRoutes"));
+router.use("/training-categories", require("./trainingCategoryRoutes"));
+router.use("/training-documents", require("./trainingDocumentRoutes"));
+router.use("/training-assignments", require("./trainingAssignmentRoutes"));
 
 module.exports = router;
