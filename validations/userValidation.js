@@ -5,4 +5,9 @@ const resetPasswordSchema = z.object({
   body: z.object({ newPassword: z.string().min(8) }),
 });
 
-module.exports = { resetPasswordSchema };
+const updateStatusSchema = z.object({
+  params: z.object({ id: z.coerce.number().int().positive() }),
+  body: z.object({ isActive: z.boolean() }),
+});
+
+module.exports = { resetPasswordSchema, updateStatusSchema };
