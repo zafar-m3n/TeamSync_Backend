@@ -21,4 +21,4 @@ const testConnection = async () => {
   await sequelize.authenticate();
 };
 
-module.exports = { sequelize, testConnection };
+module.exports = { sequelize, Sequelize, testConnection };
