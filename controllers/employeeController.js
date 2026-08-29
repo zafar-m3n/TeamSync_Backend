@@ -238,7 +238,7 @@ const updateEmployee = catchAsync(async (req, res) => {
   });
 
   const updated = await db.Employee.findByPk(employee.id, {
-    include: [...DETAIL_INCLUDES, "user"],
+    include: [...DETAIL_INCLUDES, { association: "user", attributes: { exclude: ["passwordHash"] } }],
   });
 
   return sendSuccess(res, 200, updated);

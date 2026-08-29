@@ -1,11 +1,10 @@
 const express = require("express");
 const router = express.Router();
 
+const { sendSuccess } = require("../utils/apiResponse");
+
 router.get("/health", (req, res) => {
-  res.status(200).json({
-    success: true,
-    data: { status: "ok", timestamp: new Date().toISOString() },
-  });
+  sendSuccess(res, 200, { status: "ok", timestamp: new Date().toISOString() });
 });
 
 router.use("/auth", require("./authRoutes"));
