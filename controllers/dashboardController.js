@@ -10,6 +10,7 @@ const { Op, fn, col } = db.Sequelize;
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/apiResponse");
+const hasPermission = require("../utils/hasPermission");
 
 const TZ = process.env.NODE_TEAMSYNC_APP_TIMEZONE || "UTC";
 
@@ -18,6 +19,18 @@ const currentYear = () => dayjs().tz(TZ).year();
 const monthRange = () => {
   const now = dayjs().tz(TZ);
   return [now.startOf("month").format("YYYY-MM-DD"), now.endOf("month").format("YYYY-MM-DD")];
+};
+
+// Percentage of attendance records in [startDate, endDate] where someone showed up
+// (Present or Late). Denominator is every record that exists in the window; employees
+// with no shift never generate a record, so they drop out of both sides automatically.
+const attendanceRate = async (startDate, endDate) => {
+  const totalRecords = await db.AttendanceRecord.count({ where: { date: { [Op.between]: [startDate, endDate] } } });
+  if (totalRecords === 0) return 0;
+  const attendedRecords = await db.AttendanceRecord.count({
+    where: { date: { [Op.between]: [startDate, endDate] }, status: { [Op.in]: ["Present", "Late"] } },
+  });
+  return Math.round((attendedRecords / totalRecords) * 10000) / 100;
 };
 
 // "assigned to this employee" — direct assignment, or one to their department
@@ -204,11 +217,53 @@ const adminDashboard = async (req, res) => {
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
     .slice(0, 10);
 
+  const weeklyStart = dayjs().tz(TZ).subtract(6, "day").format("YYYY-MM-DD");
+  const monthlyStart = dayjs().tz(TZ).startOf("month").format("YYYY-MM-DD");
+  const todayStr = today();
+
+  // System (Admin) vs Workforce (HR) is chosen by the 'permissions'/'manage' permission (Admin-only today), not a hardcoded roleName, to match how the rest of the app gates access.
+  const canManagePermissions = await hasPermission(req.user.roleId, "permissions", "manage");
+
+  let system;
+  let workforce;
+
+  if (canManagePermissions) {
+    system = {
+      totalUsers: await db.User.count(),
+      inactiveUsers: await db.User.count({ where: { isActive: false } }),
+      totalPermissions: await db.Permission.count(),
+      weeklyAttendanceRate: await attendanceRate(weeklyStart, todayStr),
+      monthlyAttendanceRate: await attendanceRate(monthlyStart, todayStr),
+    };
+  } else {
+    const upcomingLeaveItems = await db.LeaveRequest.findAll({
+      where: {
+        status: "Approved",
+        startDate: { [Op.between]: [todayStr, dayjs().tz(TZ).add(7, "day").format("YYYY-MM-DD")] },
+      },
+      include: ["employee", "leaveType"],
+      order: [["startDate", "ASC"]],
+    });
+
+    const newHireItems = await db.Employee.findAll({
+      where: { createdAt: { [Op.gte]: monthlyStart } },
+      order: [["createdAt", "DESC"]],
+    });
+
+    workforce = {
+      weeklyAttendanceRate: await attendanceRate(weeklyStart, todayStr),
+      monthlyAttendanceRate: await attendanceRate(monthlyStart, todayStr),
+      upcomingLeave: { count: upcomingLeaveItems.length, items: upcomingLeaveItems },
+      newHires: { count: newHireItems.length, items: newHireItems },
+    };
+  }
+
   return sendSuccess(res, 200, {
     orgAttendanceSnapshot,
     pendingLeaveApprovals: { total: pendingTotal, items: pendingItems },
     employeeCountByDepartment,
     recentActivityFeed,
+    ...(canManagePermissions ? { system } : { workforce }),
   });
 };
 
