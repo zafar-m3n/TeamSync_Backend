@@ -1,7 +1,7 @@
 const db = require("../models");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
-const { sendSuccess } = require("../utils/apiResponse");
+const { sendSuccess, sendDeleted } = require("../utils/apiResponse");
 
 const createLeaveType = catchAsync(async (req, res) => {
   const { name, description } = req.body;
@@ -60,7 +60,7 @@ const deleteLeaveType = catchAsync(async (req, res) => {
   }
 
   await leaveType.destroy();
-  return sendSuccess(res, 200, { message: "Leave type deleted" });
+  return sendDeleted(res, leaveType.id, "Leave type deleted");
 });
 
 module.exports = { createLeaveType, listLeaveTypes, updateLeaveType, deleteLeaveType };

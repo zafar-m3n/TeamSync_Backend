@@ -2,7 +2,7 @@ const bcrypt = require("bcryptjs");
 const db = require("../models");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
-const { sendSuccess } = require("../utils/apiResponse");
+const { sendSuccess, sendAction } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 
 const resetPassword = catchAsync(async (req, res) => {
@@ -19,7 +19,7 @@ const resetPassword = catchAsync(async (req, res) => {
   user.passwordHash = await bcrypt.hash(newPassword, saltRounds);
   await user.save();
 
-  return sendSuccess(res, 200, { message: "Password reset successfully" });
+  return sendAction(res, "Password reset successfully");
 });
 
 const listUsers = catchAsync(async (req, res) => {

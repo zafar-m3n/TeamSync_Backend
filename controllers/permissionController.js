@@ -1,7 +1,7 @@
 const db = require("../models");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
-const { sendSuccess } = require("../utils/apiResponse");
+const { sendSuccess, sendAction } = require("../utils/apiResponse");
 const { invalidateRolePermissions } = require("../utils/hasPermission");
 
 const ADMIN_LOCKOUT_MESSAGE =
@@ -80,7 +80,7 @@ const bulkUpdatePermissions = catchAsync(async (req, res) => {
   });
   new Set(permissions.map((p) => p.roleId)).forEach(invalidateRolePermissions);
 
-  return sendSuccess(res, 200, { updated: updates.length });
+  return sendAction(res, "Permissions updated");
 });
 
 module.exports = { listPermissions, updatePermission, bulkUpdatePermissions };

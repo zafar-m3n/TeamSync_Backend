@@ -4,7 +4,7 @@ const db = require("../models");
 const { Op } = db.Sequelize;
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
-const { sendSuccess } = require("../utils/apiResponse");
+const { sendSuccess, sendDeleted } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
 const isValueTaken = require("../utils/isValueTaken");
@@ -318,7 +318,7 @@ const deleteEmployee = catchAsync(async (req, res) => {
     await employee.destroy({ transaction: t });
   });
 
-  return sendSuccess(res, 200, { message: "Employee deleted" });
+  return sendDeleted(res, employee.id, "Employee deleted");
 });
 
 const uploadDocument = catchAsync(async (req, res) => {
@@ -356,7 +356,7 @@ const deleteDocument = catchAsync(async (req, res) => {
     // Best-effort cleanup — a missing file must not fail the request.
   });
 
-  return sendSuccess(res, 200, { message: "Document deleted" });
+  return sendDeleted(res, document.id, "Document deleted");
 });
 
 const assignShift = catchAsync(async (req, res) => {

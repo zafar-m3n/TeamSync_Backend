@@ -2,7 +2,7 @@ const db = require("../models");
 const { Op } = db.Sequelize;
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
-const { sendSuccess } = require("../utils/apiResponse");
+const { sendSuccess, sendDeleted } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const isValueTaken = require("../utils/isValueTaken");
 
@@ -106,7 +106,7 @@ const deleteDepartment = catchAsync(async (req, res) => {
   }
 
   await department.destroy();
-  return sendSuccess(res, 200, { message: "Department deleted" });
+  return sendDeleted(res, department.id, "Department deleted");
 });
 
 module.exports = {

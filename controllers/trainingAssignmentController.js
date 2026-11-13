@@ -1,7 +1,7 @@
 const db = require("../models");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
-const { sendSuccess } = require("../utils/apiResponse");
+const { sendSuccess, sendDeleted } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
 const { getRequesterEmployee } = require("../services/requesterService");
@@ -103,7 +103,7 @@ const removeAssignment = catchAsync(async (req, res) => {
   }
 
   await assignment.destroy();
-  return sendSuccess(res, 200, { message: "Assignment removed" });
+  return sendDeleted(res, assignment.id, "Assignment removed");
 });
 
 module.exports = { createAssignment, getMyAssignments, listAllAssignments, removeAssignment };

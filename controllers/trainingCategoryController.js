@@ -1,7 +1,7 @@
 const db = require("../models");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
-const { sendSuccess } = require("../utils/apiResponse");
+const { sendSuccess, sendDeleted } = require("../utils/apiResponse");
 
 const createCategory = catchAsync(async (req, res) => {
   const { name } = req.body;
@@ -55,7 +55,7 @@ const deleteCategory = catchAsync(async (req, res) => {
   }
 
   await category.destroy();
-  return sendSuccess(res, 200, { message: "Training category deleted" });
+  return sendDeleted(res, category.id, "Training category deleted");
 });
 
 module.exports = { createCategory, listCategories, updateCategory, deleteCategory };
