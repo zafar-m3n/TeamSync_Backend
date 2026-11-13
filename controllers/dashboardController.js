@@ -1,23 +1,14 @@
-const dayjs = require("dayjs");
-const utc = require("dayjs/plugin/utc");
-const timezone = require("dayjs/plugin/timezone");
-
-dayjs.extend(utc);
-dayjs.extend(timezone);
-
 const db = require("../models");
 const { Op, fn, col } = db.Sequelize;
 const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/apiResponse");
 const hasPermission = require("../utils/hasPermission");
 const { getRequesterEmployee } = require("../services/requesterService");
+const { nowTz, todayTz } = require("../utils/time");
 
-const TZ = process.env.NODE_TEAMSYNC_APP_TIMEZONE || "UTC";
-
-const today = () => dayjs().tz(TZ).format("YYYY-MM-DD");
-const currentYear = () => dayjs().tz(TZ).year();
+const currentYear = () => nowTz().year();
 const monthRange = () => {
-  const now = dayjs().tz(TZ);
+  const now = nowTz();
   return [now.startOf("month").format("YYYY-MM-DD"), now.endOf("month").format("YYYY-MM-DD")];
 };
 
@@ -88,7 +79,7 @@ const employeeDashboard = async (req, res) => {
   }
 
   const attendance = await db.AttendanceRecord.findOne({
-    where: { employeeId: requester.id, date: today() },
+    where: { employeeId: requester.id, date: todayTz() },
   });
   const clockInStatus = attendance
     ? { hasClockedIn: true, status: attendance.status, clockIn: attendance.clockIn }
@@ -116,7 +107,7 @@ const managerDashboard = async (req, res) => {
   const reportIds = reports.map((r) => r.id);
 
   const teamAttendanceToday = await db.AttendanceRecord.findAll({
-    where: { employeeId: { [Op.in]: reportIds }, date: today() },
+    where: { employeeId: { [Op.in]: reportIds }, date: todayTz() },
     include: { association: "employee", attributes: ["id", "fullName", "employeeCode"] },
   });
 
@@ -138,7 +129,7 @@ const managerDashboard = async (req, res) => {
 
 const adminDashboard = async (req, res) => {
   const orgAttendanceSnapshot = await db.AttendanceRecord.findAll({
-    where: { date: today() },
+    where: { date: todayTz() },
     attributes: ["status", [fn("COUNT", col("id")), "count"]],
     group: ["status"],
   });
@@ -214,9 +205,9 @@ const adminDashboard = async (req, res) => {
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
     .slice(0, 10);
 
-  const weeklyStart = dayjs().tz(TZ).subtract(6, "day").format("YYYY-MM-DD");
-  const monthlyStart = dayjs().tz(TZ).startOf("month").format("YYYY-MM-DD");
-  const todayStr = today();
+  const weeklyStart = nowTz().subtract(6, "day").format("YYYY-MM-DD");
+  const monthlyStart = nowTz().startOf("month").format("YYYY-MM-DD");
+  const todayStr = todayTz();
 
   // System (Admin) vs Workforce (HR) is chosen by the 'permissions'/'manage' permission (Admin-only today), not a hardcoded roleName, to match how the rest of the app gates access.
   const canManagePermissions = await hasPermission(req.user.roleId, "permissions", "manage");
@@ -236,7 +227,7 @@ const adminDashboard = async (req, res) => {
     const upcomingLeaveItems = await db.LeaveRequest.findAll({
       where: {
         status: "Approved",
-        startDate: { [Op.between]: [todayStr, dayjs().tz(TZ).add(7, "day").format("YYYY-MM-DD")] },
+        startDate: { [Op.between]: [todayStr, nowTz().add(7, "day").format("YYYY-MM-DD")] },
       },
       include: ["employee", "leaveType"],
       order: [["startDate", "ASC"]],

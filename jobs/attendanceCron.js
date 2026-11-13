@@ -1,20 +1,12 @@
 const cron = require("node-cron");
-const dayjs = require("dayjs");
-const utc = require("dayjs/plugin/utc");
-const timezone = require("dayjs/plugin/timezone");
-
-dayjs.extend(utc);
-dayjs.extend(timezone);
-
 const logger = require("../utils/logger");
-
-const TZ = process.env.NODE_TEAMSYNC_APP_TIMEZONE || "UTC";
+const { nowTz } = require("../utils/time");
 
 const runDailyAttendanceJob = async () => {
   const db = require("../models");
 
   try {
-    const yesterday = dayjs().tz(TZ).subtract(1, "day");
+    const yesterday = nowTz().subtract(1, "day");
     const dateStr = yesterday.format("YYYY-MM-DD");
     const weekday = yesterday.format("ddd");
 

@@ -1,15 +1,10 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const dayjs = require("dayjs");
-const utc = require("dayjs/plugin/utc");
-const timezone = require("dayjs/plugin/timezone");
 const db = require("../models");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/apiResponse");
-
-dayjs.extend(utc);
-dayjs.extend(timezone);
+const { nowTz } = require("../utils/time");
 
 const login = catchAsync(async (req, res) => {
   const { email, password } = req.body;
@@ -35,12 +30,10 @@ const login = catchAsync(async (req, res) => {
 
   // --- Attendance clock-in (after credentials verified, before responding) ---
   try {
-    const TZ = process.env.NODE_TEAMSYNC_APP_TIMEZONE || "UTC";
-
     const employee = await db.Employee.findOne({ where: { userId: user.id }, include: "shift" });
 
     if (employee && employee.shift) {
-      const now = dayjs().tz(TZ);
+      const now = nowTz();
       const today = now.format("YYYY-MM-DD");
 
       const existing = await db.AttendanceRecord.findOne({

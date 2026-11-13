@@ -1,20 +1,12 @@
-const dayjs = require("dayjs");
-const utc = require("dayjs/plugin/utc");
-const timezone = require("dayjs/plugin/timezone");
-
-dayjs.extend(utc);
-dayjs.extend(timezone);
-
 const db = require("../models");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/apiResponse");
 const hasPermission = require("../utils/hasPermission");
 const { getRequesterEmployee } = require("../services/requesterService");
+const { nowTz } = require("../utils/time");
 
-const TZ = process.env.NODE_TEAMSYNC_APP_TIMEZONE || "UTC";
-
-const currentYear = () => dayjs().tz(TZ).year();
+const currentYear = () => nowTz().year();
 
 const resolveYear = (query) => {
   const parsed = parseInt(query.year, 10);

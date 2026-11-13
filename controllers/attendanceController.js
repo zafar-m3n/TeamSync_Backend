@@ -1,10 +1,3 @@
-const dayjs = require("dayjs");
-const utc = require("dayjs/plugin/utc");
-const timezone = require("dayjs/plugin/timezone");
-
-dayjs.extend(utc);
-dayjs.extend(timezone);
-
 const db = require("../models");
 const { Op } = db.Sequelize;
 const AppError = require("../utils/AppError");
@@ -12,8 +5,7 @@ const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const { getRequesterEmployee } = require("../services/requesterService");
-
-const TZ = process.env.NODE_TEAMSYNC_APP_TIMEZONE || "UTC";
+const { todayTz } = require("../utils/time");
 
 const buildDateFilter = (query) => {
   if (query.startDate && query.endDate) {
@@ -58,7 +50,7 @@ const getTeamAttendance = catchAsync(async (req, res) => {
   });
   const reportIds = reports.map((r) => r.id);
 
-  const date = req.query.date || dayjs().tz(TZ).format("YYYY-MM-DD");
+  const date = req.query.date || todayTz();
 
   const records = await db.AttendanceRecord.findAll({
     where: { employeeId: { [Op.in]: reportIds }, date },
