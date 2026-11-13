@@ -5,6 +5,7 @@ const { sendSuccess } = require("../utils/apiResponse");
 const hasPermission = require("../utils/hasPermission");
 const { getRequesterEmployee } = require("../services/requesterService");
 const { nowTz, todayTz } = require("../utils/time");
+const { assignmentScopeOr } = require("../utils/queryHelpers");
 
 const currentYear = () => nowTz().year();
 const monthRange = () => {
@@ -22,16 +23,6 @@ const attendanceRate = async (startDate, endDate) => {
     where: { date: { [Op.between]: [startDate, endDate] }, status: { [Op.in]: ["Present", "Late"] } },
   });
   return Math.round((attendedRecords / totalRecords) * 10000) / 100;
-};
-
-// "assigned to this employee" — direct assignment, or one to their department
-// (only when they actually have a department). Mirrors Phase 10's getAssignedToMe.
-const assignmentScopeOr = (employee) => {
-  const conds = [{ employeeId: employee.id }];
-  if (employee.departmentId != null) {
-    conds.push({ departmentId: employee.departmentId });
-  }
-  return { [Op.or]: conds };
 };
 
 const buildLeaveBalance = async (employeeId) => {

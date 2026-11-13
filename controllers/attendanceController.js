@@ -6,19 +6,7 @@ const { sendSuccess } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const { getRequesterEmployee } = require("../services/requesterService");
 const { todayTz } = require("../utils/time");
-
-const buildDateFilter = (query) => {
-  if (query.startDate && query.endDate) {
-    return { [Op.between]: [query.startDate, query.endDate] };
-  }
-  if (query.startDate) {
-    return { [Op.gte]: query.startDate };
-  }
-  if (query.endDate) {
-    return { [Op.lte]: query.endDate };
-  }
-  return undefined;
-};
+const { buildDateFilter } = require("../utils/queryHelpers");
 
 const getMyAttendance = catchAsync(async (req, res) => {
   const requester = await getRequesterEmployee(req);

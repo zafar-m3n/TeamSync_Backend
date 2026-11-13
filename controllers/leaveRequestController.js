@@ -9,25 +9,13 @@ const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
 const { markHalfDay } = require("../services/attendanceService");
 const { getRequesterEmployee } = require("../services/requesterService");
+const { buildDateFilter } = require("../utils/queryHelpers");
 
 const computeDays = (startDate, endDate, isHalfDay) => {
   if (isHalfDay) {
     return 0.5;
   }
   return dayjs(endDate).diff(dayjs(startDate), "day") + 1;
-};
-
-const buildDateFilter = (query) => {
-  if (query.startDate && query.endDate) {
-    return { [Op.between]: [query.startDate, query.endDate] };
-  }
-  if (query.startDate) {
-    return { [Op.gte]: query.startDate };
-  }
-  if (query.endDate) {
-    return { [Op.lte]: query.endDate };
-  }
-  return undefined;
 };
 
 // HR/Admin (leave:view_all) can act on any request; a Manager with leave:approve

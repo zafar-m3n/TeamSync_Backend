@@ -1,21 +1,11 @@
 const db = require("../models");
-const { Op } = db.Sequelize;
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
 const { getRequesterEmployee } = require("../services/requesterService");
-
-// "assigned to this employee" = a direct assignment to them, or one to their
-// department (only when they actually have a department).
-const assignmentScopeOr = (employee) => {
-  const conds = [{ employeeId: employee.id }];
-  if (employee.departmentId != null) {
-    conds.push({ departmentId: employee.departmentId });
-  }
-  return { [Op.or]: conds };
-};
+const { assignmentScopeOr } = require("../utils/queryHelpers");
 
 const uploadDocument = catchAsync(async (req, res) => {
   if (!req.file) {
