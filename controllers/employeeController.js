@@ -8,6 +8,7 @@ const { sendSuccess } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
 const isValueTaken = require("../utils/isValueTaken");
+const { getRequesterEmployee } = require("../services/requesterService");
 
 const DETAIL_INCLUDES = [
   "department",
@@ -154,11 +155,7 @@ const getMyProfile = catchAsync(async (req, res) => {
 });
 
 const getTeam = catchAsync(async (req, res) => {
-  const requester = await db.Employee.findOne({ where: { userId: req.user.id } });
-
-  if (!requester) {
-    throw new AppError("No employee profile linked to this account", 404, "NO_EMPLOYEE_PROFILE");
-  }
+  const requester = await getRequesterEmployee(req);
 
   const reports = await db.Employee.findAll({
     where: { managerId: requester.id },
@@ -180,7 +177,7 @@ const getEmployeeById = catchAsync(async (req, res) => {
     return sendSuccess(res, 200, fullShape(target));
   }
 
-  const requester = await db.Employee.findOne({ where: { userId: req.user.id } });
+  const requester = await getRequesterEmployee(req, { required: false });
 
   const canViewTeam = await hasPermission(req.user.roleId, "employees", "view_team");
   if (canViewTeam && requester && target.managerId === requester.id) {

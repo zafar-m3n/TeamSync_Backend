@@ -4,6 +4,7 @@ const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
+const { getRequesterEmployee } = require("../services/requesterService");
 
 const createAssignment = catchAsync(async (req, res) => {
   const { documentId, employeeId, departmentId } = req.body;
@@ -13,10 +14,7 @@ const createAssignment = catchAsync(async (req, res) => {
     throw new AppError("Training document not found", 404, "DOCUMENT_NOT_FOUND");
   }
 
-  const requester = await db.Employee.findOne({ where: { userId: req.user.id } });
-  if (!requester) {
-    throw new AppError("No employee profile linked to this account", 404, "NO_EMPLOYEE_PROFILE");
-  }
+  const requester = await getRequesterEmployee(req);
 
   if (employeeId != null) {
     const target = await db.Employee.findByPk(employeeId);

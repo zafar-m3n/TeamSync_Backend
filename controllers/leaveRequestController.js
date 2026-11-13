@@ -8,6 +8,7 @@ const { sendSuccess } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
 const { markHalfDay } = require("../services/attendanceService");
+const { getRequesterEmployee } = require("../services/requesterService");
 
 const computeDays = (startDate, endDate, isHalfDay) => {
   if (isHalfDay) {
@@ -38,7 +39,7 @@ const assertCanActOnRequest = async (req, request) => {
   }
 
   const canApprove = await hasPermission(req.user.roleId, "leave", "approve");
-  const requester = await db.Employee.findOne({ where: { userId: req.user.id } });
+  const requester = await getRequesterEmployee(req, { required: false });
 
   if (canApprove && requester && request.employee && request.employee.managerId === requester.id) {
     return;
@@ -48,10 +49,7 @@ const assertCanActOnRequest = async (req, request) => {
 };
 
 const createLeaveRequest = catchAsync(async (req, res) => {
-  const requester = await db.Employee.findOne({ where: { userId: req.user.id } });
-  if (!requester) {
-    throw new AppError("No employee profile linked to this account", 404, "NO_EMPLOYEE_PROFILE");
-  }
+  const requester = await getRequesterEmployee(req);
 
   const { leaveTypeId, startDate, endDate, isHalfDay } = req.body;
 
@@ -73,10 +71,7 @@ const createLeaveRequest = catchAsync(async (req, res) => {
 });
 
 const getMyLeaveRequests = catchAsync(async (req, res) => {
-  const requester = await db.Employee.findOne({ where: { userId: req.user.id } });
-  if (!requester) {
-    throw new AppError("No employee profile linked to this account", 404, "NO_EMPLOYEE_PROFILE");
-  }
+  const requester = await getRequesterEmployee(req);
 
   const { page, limit, offset } = parsePagination(req.query);
 
@@ -97,10 +92,7 @@ const getMyLeaveRequests = catchAsync(async (req, res) => {
 });
 
 const getTeamLeaveRequests = catchAsync(async (req, res) => {
-  const requester = await db.Employee.findOne({ where: { userId: req.user.id } });
-  if (!requester) {
-    throw new AppError("No employee profile linked to this account", 404, "NO_EMPLOYEE_PROFILE");
-  }
+  const requester = await getRequesterEmployee(req);
 
   const reports = await db.Employee.findAll({
     where: { managerId: requester.id },
@@ -218,7 +210,7 @@ const cancelLeaveRequest = catchAsync(async (req, res) => {
     throw new AppError("Leave request not found", 404, "NOT_FOUND");
   }
 
-  const requester = await db.Employee.findOne({ where: { userId: req.user.id } });
+  const requester = await getRequesterEmployee(req, { required: false });
   const isManagerOfTarget = !!(
     requester &&
     request.employee &&

@@ -7,10 +7,10 @@ dayjs.extend(timezone);
 
 const db = require("../models");
 const { Op, fn, col } = db.Sequelize;
-const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/apiResponse");
 const hasPermission = require("../utils/hasPermission");
+const { getRequesterEmployee } = require("../services/requesterService");
 
 const TZ = process.env.NODE_TEAMSYNC_APP_TIMEZONE || "UTC";
 
@@ -76,7 +76,7 @@ const buildAssignedTraining = async (employee) => {
 };
 
 const employeeDashboard = async (req, res) => {
-  const requester = await db.Employee.findOne({ where: { userId: req.user.id } });
+  const requester = await getRequesterEmployee(req, { required: false });
 
   if (!requester) {
     return sendSuccess(res, 200, {
@@ -107,10 +107,7 @@ const employeeDashboard = async (req, res) => {
 };
 
 const managerDashboard = async (req, res) => {
-  const requester = await db.Employee.findOne({ where: { userId: req.user.id } });
-  if (!requester) {
-    throw new AppError("No employee profile linked to this account", 404, "NO_EMPLOYEE_PROFILE");
-  }
+  const requester = await getRequesterEmployee(req);
 
   const reports = await db.Employee.findAll({
     where: { managerId: requester.id },

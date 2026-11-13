@@ -5,6 +5,7 @@ const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
+const { getRequesterEmployee } = require("../services/requesterService");
 
 // "assigned to this employee" = a direct assignment to them, or one to their
 // department (only when they actually have a department).
@@ -74,10 +75,7 @@ const listAllDocuments = catchAsync(async (req, res) => {
 });
 
 const getAssignedToMe = catchAsync(async (req, res) => {
-  const requester = await db.Employee.findOne({ where: { userId: req.user.id } });
-  if (!requester) {
-    throw new AppError("No employee profile linked to this account", 404, "NO_EMPLOYEE_PROFILE");
-  }
+  const requester = await getRequesterEmployee(req);
 
   const assignments = await db.TrainingAssignment.findAll({
     where: assignmentScopeOr(requester),
@@ -115,7 +113,7 @@ const getDocumentById = catchAsync(async (req, res) => {
 
   const canViewAssigned = await hasPermission(req.user.roleId, "training", "view_assigned");
   if (canViewAssigned) {
-    const requester = await db.Employee.findOne({ where: { userId: req.user.id } });
+    const requester = await getRequesterEmployee(req, { required: false });
     if (requester) {
       const assignment = await db.TrainingAssignment.findOne({
         where: { documentId: document.id, ...assignmentScopeOr(requester) },

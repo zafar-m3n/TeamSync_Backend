@@ -7,15 +7,13 @@ const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
+const { getRequesterEmployee } = require("../services/requesterService");
 
 const assertIsDirectReport = async (req, targetEmployeeId) => {
   const db = require("../models");
   const AppError = require("../utils/AppError");
 
-  const requesterEmployee = await db.Employee.findOne({ where: { userId: req.user.id } });
-  if (!requesterEmployee) {
-    throw new AppError("No employee profile linked to this account", 404, "NO_EMPLOYEE_PROFILE");
-  }
+  const requesterEmployee = await getRequesterEmployee(req);
 
   const target = await db.Employee.findByPk(targetEmployeeId);
   if (!target) {
@@ -47,10 +45,7 @@ const createGoal = catchAsync(async (req, res) => {
 });
 
 const getMyGoals = catchAsync(async (req, res) => {
-  const requester = await db.Employee.findOne({ where: { userId: req.user.id } });
-  if (!requester) {
-    throw new AppError("No employee profile linked to this account", 404, "NO_EMPLOYEE_PROFILE");
-  }
+  const requester = await getRequesterEmployee(req);
 
   const { page, limit, offset } = parsePagination(req.query);
 
@@ -65,10 +60,7 @@ const getMyGoals = catchAsync(async (req, res) => {
 });
 
 const getTeamGoals = catchAsync(async (req, res) => {
-  const requester = await db.Employee.findOne({ where: { userId: req.user.id } });
-  if (!requester) {
-    throw new AppError("No employee profile linked to this account", 404, "NO_EMPLOYEE_PROFILE");
-  }
+  const requester = await getRequesterEmployee(req);
 
   const reports = await db.Employee.findAll({
     where: { managerId: requester.id },
@@ -131,7 +123,7 @@ const getGoalById = catchAsync(async (req, res) => {
     return sendSuccess(res, 200, goal);
   }
 
-  const requester = await db.Employee.findOne({ where: { userId: req.user.id } });
+  const requester = await getRequesterEmployee(req, { required: false });
 
   const canViewTeam = await hasPermission(req.user.roleId, "goals", "view_team");
   if (canViewTeam && requester && goal.employee && goal.employee.managerId === requester.id) {
