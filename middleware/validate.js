@@ -16,7 +16,8 @@ const validate = (schema) => (req, res, next) => {
   }
 
   if (result.data.body) req.body = result.data.body;
-  if (result.data.query) req.query = result.data.query;
+  // Express 5 makes req.query a read-only getter, so parsed values live here instead.
+  if (result.data.query) req.validatedQuery = result.data.query;
   if (result.data.params) req.params = result.data.params;
 
   next();
