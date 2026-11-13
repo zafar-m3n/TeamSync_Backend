@@ -59,7 +59,7 @@ Backend (this repository):
 
 - **Runtime:** Node.js 18 or newer, CommonJS
 - **Framework:** Express 5
-- **Database:** MySQL 8 via Sequelize 6 (`mysql2` driver)
+- **Database:** MySQL 8 or MariaDB 10.4+ via Sequelize 6 (`mysql2` driver), schema managed with `sequelize-cli` migrations
 - **Auth:** JWT (`jsonwebtoken`), password hashing with `bcryptjs`
 - **Request validation:** Zod (a schema per route)
 - **File uploads:** Multer, stored on local disk
@@ -68,7 +68,7 @@ Backend (this repository):
 - **Dates & timezones:** Day.js (`utc` + `timezone` plugins)
 - **Supporting:** `morgan` (HTTP request logging), `cors`, `dotenv`, `colors` (console output)
 
-There is no ORM-managed schema migration — the database schema is applied from a SQL script before the service starts (see Environment & Deployment).
+The database schema is defined only by the Sequelize migrations in `migrations/` (see Database below). The service never creates or alters tables itself.
 
 Frontend: a separate React (Vite) + Tailwind CSS v4 application (teal accent, light mode only), deployed and maintained separately.
 
@@ -103,11 +103,43 @@ Frontend: a separate React (Vite) + Tailwind CSS v4 application (teal accent, li
 
 ## Environment & Deployment
 
-Three things must be in place before the service will run: a MySQL database with the schema applied, a filled-in `.env`, and one seed run.
+Three things must be in place before the service will run: a filled-in `.env`, an empty database, and one `npm run db:setup` run (migrations, then seed).
 
 ### 1. Database
 
-Create a MySQL 8 database and apply the schema script (`SQL Script.txt`, provided with the project — it creates the `teamsync` database and all 17 tables, and uses JSON columns and CHECK constraints). The application does **not** create or alter tables — the schema must exist before first start. Point the `NODE_TEAMSYNC_DB_*` variables at this database.
+**Migrations are the only source of the schema.** Every table, column, index, foreign key and constraint is created by the files in `migrations/`, starting with the baseline (`20261113000000-baseline-schema.js`). The application does **not** create or alter tables, and there is no separate SQL script. Every schema change — a new table, column, index or constraint — must be a new migration file; never edit the database by hand and never change a migration that has already been applied.
+
+The CLI reads the same `NODE_TEAMSYNC_DB_*` variables as the app (`config/dbSettings.js`), so it always targets the database in `.env`.
+
+| Command | What it does |
+|---|---|
+| `npm run db:migrate` | Apply all pending migrations |
+| `npm run db:migrate:undo` | Revert the most recent migration |
+| `npm run db:migrate:status` | List migrations and whether each is applied |
+| `npm run seed` | Create base roles, the permission matrix and the first Admin (safe to re-run) |
+| `npm run db:setup` | `db:migrate`, then `seed` |
+
+Applied migrations are recorded in the `SequelizeMeta` table.
+
+#### Rebuild the database from scratch
+
+This deletes all data in the database. In PowerShell, from this folder, with the database name, user and host from `.env` (the example uses the default `teamsync` and `root` on `127.0.0.1`; adjust the `mysql.exe` path to your MySQL or MariaDB install — the example is XAMPP):
+
+```powershell
+$mysql = "C:\xampp\mysql\bin\mysql.exe"
+& $mysql -h 127.0.0.1 -P 3306 -u root -p -e "DROP DATABASE IF EXISTS teamsync; CREATE DATABASE teamsync CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;"
+npm run db:setup
+```
+
+`-p` prompts for the database password; leave it off if the user has none. After `db:setup`, `npm run db:migrate:status` should list every migration as `up`, and the bootstrap Admin from `.env` can log in.
+
+#### Adding a schema change
+
+```powershell
+npx sequelize-cli migration:generate --name add-something
+```
+
+Fill in `up` and `down` in the new file under `migrations/`, run `npm run db:migrate`, and commit the migration together with the model and code changes that use it.
 
 ### 2. Environment variables
 
@@ -126,16 +158,16 @@ Copy `.env.example` to `.env` and fill in real values. Every variable is prefixe
 
 `.env` is not committed. Keep production secrets in whatever secret store the deployment uses.
 
-### 3. Seed
+### 3. Migrate and seed
 
-Run once, after the database and `.env` are ready:
+Run once, after `.env` is filled in and the empty database exists:
 
 ```
 npm install
-npm run seed
+npm run db:setup
 ```
 
-This creates the four base roles, seeds the default permission matrix, and creates the first Admin account from `NODE_TEAMSYNC_SEED_ADMIN_EMAIL` / `NODE_TEAMSYNC_SEED_ADMIN_PASSWORD`. It is safe to re-run: it only fills in rows that don't already exist and will not overwrite permission changes made since. Change the bootstrap Admin password after first login — there is no self-service password reset, so an existing Admin or HR user does it via the password-reset endpoint.
+This applies all migrations, then seeds: it creates the four base roles, seeds the default permission matrix, and creates the first Admin account from `NODE_TEAMSYNC_SEED_ADMIN_EMAIL` / `NODE_TEAMSYNC_SEED_ADMIN_PASSWORD`. It is safe to re-run: it only fills in rows that don't already exist and will not overwrite permission changes made since. Change the bootstrap Admin password after first login — there is no self-service password reset, so an existing Admin or HR user does it via the password-reset endpoint.
 
 ### 4. Run
 
