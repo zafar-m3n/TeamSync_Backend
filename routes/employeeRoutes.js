@@ -9,6 +9,7 @@ const { createUploader } = require("../config/multer");
 const {
   createEmployeeSchema,
   updateEmployeeSchema,
+  deleteEmployeeSchema,
   uploadDocumentSchema,
   assignShiftSchema,
 } = require("../validations/employeeValidation");
@@ -38,6 +39,14 @@ router.patch(
   checkPermission("employees", "edit"),
   validate(updateEmployeeSchema),
   employeeController.updateEmployee,
+);
+
+router.delete(
+  "/:id",
+  verifyToken,
+  checkPermission("employees", "delete"),
+  validate(deleteEmployeeSchema),
+  employeeController.deleteEmployee,
 );
 
 router.patch(

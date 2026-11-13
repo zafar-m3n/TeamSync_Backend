@@ -50,6 +50,7 @@ const updateEmployeeSchema = z.object({
   params: z.object({ id: z.coerce.number().int().positive() }),
   body: z.object({
     email: z.string().email().optional(),
+    roleId: z.number().int().positive().optional(),
     employeeCode: z.string().min(1).max(30).optional(),
     fullName: z.string().min(1).max(150).optional(),
     dob: z.string().optional(),
@@ -64,6 +65,10 @@ const updateEmployeeSchema = z.object({
     contact: contactSchema.optional(),
     banking: bankingSchema.optional(),
   }),
+});
+
+const deleteEmployeeSchema = z.object({
+  params: z.object({ id: z.coerce.number().int().positive() }),
 });
 
 const uploadDocumentSchema = z.object({
@@ -81,6 +86,7 @@ const assignShiftSchema = z.object({
 module.exports = {
   createEmployeeSchema,
   updateEmployeeSchema,
+  deleteEmployeeSchema,
   uploadDocumentSchema,
   assignShiftSchema,
 };

@@ -6,10 +6,17 @@ const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
-const { sendEmail } = require("../utils/email");
 const hasPermission = require("../utils/hasPermission");
 
-const DETAIL_INCLUDES = ["department", "shift", "manager", "contact", "banking", "documents"];
+const DETAIL_INCLUDES = [
+  "department",
+  "shift",
+  "manager",
+  "contact",
+  "banking",
+  "documents",
+  { association: "user", attributes: { exclude: ["passwordHash"] }, include: ["role"] },
+];
 
 const limitedShape = (employee) => ({
   id: employee.id,
@@ -17,6 +24,15 @@ const limitedShape = (employee) => ({
   department: employee.department,
   designation: employee.designation,
 });
+
+// email and role live on the linked User, not on Employee — flatten them onto the
+// employee object so the response matches the shape the frontend expects.
+const fullShape = (employee) => {
+  const plain = employee.get({ plain: true });
+  plain.email = plain.user ? plain.user.email : null;
+  plain.role = plain.user ? plain.user.role : null;
+  return plain;
+};
 
 const assertReferencesExist = async ({ departmentId, shiftId, managerId }) => {
   if (departmentId != null) {
@@ -86,14 +102,6 @@ const createEmployee = catchAsync(async (req, res) => {
     return { employee: createdEmployee, user: createdUser };
   });
 
-  const loginUrl = process.env.NODE_TEAMSYNC_CLIENT_URL;
-  sendEmail({
-    to: email,
-    subject: "Welcome to TeamSync",
-    text: `Hi ${employee.fullName},\n\nYour TeamSync account has been created. You can sign in at ${loginUrl} using your work email. Your administrator has set your initial password separately.\n\n— TeamSync`,
-    html: `<p>Hi ${employee.fullName},</p><p>Your TeamSync account has been created. You can sign in at <a href="${loginUrl}">${loginUrl}</a> using your work email. Your administrator has set your initial password separately.</p><p>— TeamSync</p>`,
-  });
-
   return sendSuccess(res, 201, {
     employee,
     user: { id: user.id, email: user.email, roleId: user.roleId },
@@ -135,7 +143,7 @@ const getMyProfile = catchAsync(async (req, res) => {
     throw new AppError("No employee profile linked to this account", 404, "NO_EMPLOYEE_PROFILE");
   }
 
-  return sendSuccess(res, 200, employee);
+  return sendSuccess(res, 200, fullShape(employee));
 });
 
 const getTeam = catchAsync(async (req, res) => {
@@ -162,7 +170,7 @@ const getEmployeeById = catchAsync(async (req, res) => {
 
   const canViewAll = await hasPermission(req.user.roleId, "employees", "view_all");
   if (canViewAll) {
-    return sendSuccess(res, 200, target);
+    return sendSuccess(res, 200, fullShape(target));
   }
 
   const requester = await db.Employee.findOne({ where: { userId: req.user.id } });
@@ -174,14 +182,14 @@ const getEmployeeById = catchAsync(async (req, res) => {
 
   const canViewOwn = await hasPermission(req.user.roleId, "employees", "view_own");
   if (canViewOwn && requester && target.id === requester.id) {
-    return sendSuccess(res, 200, target);
+    return sendSuccess(res, 200, fullShape(target));
   }
 
   throw new AppError("You do not have permission to view this employee", 403, "FORBIDDEN");
 });
 
 const updateEmployee = catchAsync(async (req, res) => {
-  const { email, contact, banking, ...employeeFields } = req.body;
+  const { email, roleId, contact, banking, ...employeeFields } = req.body;
 
   const employee = await db.Employee.findByPk(req.params.id, { include: ["user"] });
 
@@ -212,6 +220,10 @@ const updateEmployee = catchAsync(async (req, res) => {
       await employee.user.update({ email }, { transaction: t });
     }
 
+    if (roleId) {
+      await employee.user.update({ roleId }, { transaction: t });
+    }
+
     await employee.update(employeeFields, { transaction: t });
 
     if (contact) {
@@ -237,11 +249,64 @@ const updateEmployee = catchAsync(async (req, res) => {
     }
   });
 
-  const updated = await db.Employee.findByPk(employee.id, {
-    include: [...DETAIL_INCLUDES, { association: "user", attributes: { exclude: ["passwordHash"] } }],
+  const updated = await db.Employee.findByPk(employee.id, { include: DETAIL_INCLUDES });
+
+  return sendSuccess(res, 200, fullShape(updated));
+});
+
+// Soft delete (Employee and User are both paranoid). The employee and their login
+// account are archived and hidden from every read; all history — attendance, leave,
+// goals, training, banking — keeps its foreign keys and stays intact. Not reversible
+// from the API. Blocked while the employee still anchors other live records.
+const deleteEmployee = catchAsync(async (req, res) => {
+  const employee = await db.Employee.findByPk(req.params.id, { include: ["user"] });
+
+  if (!employee) {
+    throw new AppError("Employee not found", 404, "NOT_FOUND");
+  }
+
+  if (req.user.id === employee.userId) {
+    throw new AppError("You cannot delete your own account", 400, "CANNOT_DELETE_SELF");
+  }
+
+  const reportCount = await db.Employee.count({ where: { managerId: employee.id } });
+  if (reportCount > 0) {
+    throw new AppError(
+      "Cannot delete an employee who still manages direct reports. Reassign them first.",
+      409,
+      "EMPLOYEE_HAS_REPORTS",
+    );
+  }
+
+  const headedCount = await db.Department.count({ where: { departmentHeadId: employee.id } });
+  if (headedCount > 0) {
+    throw new AppError(
+      "Cannot delete an employee who still heads a department. Reassign the department head first.",
+      409,
+      "EMPLOYEE_IS_DEPARTMENT_HEAD",
+    );
+  }
+
+  const pendingLeaveCount = await db.LeaveRequest.count({
+    where: { employeeId: employee.id, status: "Pending" },
+  });
+  if (pendingLeaveCount > 0) {
+    throw new AppError(
+      "Cannot delete an employee with pending leave requests. Resolve them first.",
+      409,
+      "EMPLOYEE_HAS_PENDING_LEAVE",
+    );
+  }
+
+  await db.sequelize.transaction(async (t) => {
+    if (employee.user) {
+      await employee.user.update({ isActive: false }, { transaction: t });
+      await employee.user.destroy({ transaction: t });
+    }
+    await employee.destroy({ transaction: t });
   });
 
-  return sendSuccess(res, 200, updated);
+  return sendSuccess(res, 200, { message: "Employee deleted" });
 });
 
 const uploadDocument = catchAsync(async (req, res) => {
@@ -311,6 +376,7 @@ module.exports = {
   getTeam,
   getEmployeeById,
   updateEmployee,
+  deleteEmployee,
   uploadDocument,
   deleteDocument,
   assignShift,
