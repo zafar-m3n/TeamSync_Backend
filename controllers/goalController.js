@@ -10,9 +10,6 @@ const hasPermission = require("../utils/hasPermission");
 const { getRequesterEmployee } = require("../services/requesterService");
 
 const assertIsDirectReport = async (req, targetEmployeeId) => {
-  const db = require("../models");
-  const AppError = require("../utils/AppError");
-
   const requesterEmployee = await getRequesterEmployee(req);
 
   const target = await db.Employee.findByPk(targetEmployeeId);
