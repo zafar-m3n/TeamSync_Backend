@@ -27,9 +27,20 @@ const BASE_ROLES = [
   },
 ];
 
+const REQUIRED_TABLES = ["roles", "users", "permissions"];
+
+const assertSchemaExists = async () => {
+  const tables = (await db.sequelize.getQueryInterface().showAllTables()).map((t) => String(t).toLowerCase());
+  const missing = REQUIRED_TABLES.filter((t) => !tables.includes(t));
+  if (missing.length) {
+    throw new Error(`Database schema is missing (${missing.join(", ")}). Run npm run db:migrate first.`);
+  }
+};
+
 const run = async () => {
   try {
     await db.sequelize.authenticate();
+    await assertSchemaExists();
 
     for (const roleData of BASE_ROLES) {
       await db.Role.findOrCreate({ where: { name: roleData.name }, defaults: roleData });

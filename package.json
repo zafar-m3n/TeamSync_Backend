@@ -9,7 +9,8 @@
     "seed": "node seeders/seed.js",
     "db:migrate": "sequelize-cli db:migrate",
     "db:migrate:undo": "sequelize-cli db:migrate:undo",
-    "db:migrate:status": "sequelize-cli db:migrate:status"
+    "db:migrate:status": "sequelize-cli db:migrate:status",
+    "db:setup": "npm run db:migrate && npm run seed"
   },
   "keywords": [],
   "author": "",
