@@ -45,7 +45,7 @@ const run = async () => {
       throw new Error("NODE_TEAMSYNC_SEED_ADMIN_EMAIL and NODE_TEAMSYNC_SEED_ADMIN_PASSWORD must be set in .env");
     }
 
-    const existingAdmin = await db.User.findOne({ where: { email: adminEmail } });
+    const existingAdmin = await db.User.findOne({ where: { email: adminEmail }, paranoid: false });
 
     if (existingAdmin) {
       logger.info(`Admin user ${adminEmail} already exists — skipping`);

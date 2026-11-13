@@ -4,9 +4,18 @@ const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
+const isValueTaken = require("../utils/isValueTaken");
 
 const createDepartment = catchAsync(async (req, res) => {
   const { name, departmentHeadId } = req.body;
+
+  if (await isValueTaken(db.Department, "name", name)) {
+    throw new AppError(
+      "Department name belongs to an existing or deleted department",
+      409,
+      "DEPARTMENT_NAME_TAKEN",
+    );
+  }
 
   if (departmentHeadId != null) {
     const employee = await db.Employee.findByPk(departmentHeadId);
@@ -57,7 +66,18 @@ const updateDepartment = catchAsync(async (req, res) => {
     throw new AppError("Department not found", 404, "NOT_FOUND");
   }
 
-  const { departmentHeadId } = req.body;
+  const { name, departmentHeadId } = req.body;
+
+  if (name && name !== department.name) {
+    if (await isValueTaken(db.Department, "name", name, { excludeId: department.id })) {
+      throw new AppError(
+        "Department name belongs to an existing or deleted department",
+        409,
+        "DEPARTMENT_NAME_TAKEN",
+      );
+    }
+  }
+
   if (departmentHeadId != null) {
     const employee = await db.Employee.findByPk(departmentHeadId);
     if (!employee) {

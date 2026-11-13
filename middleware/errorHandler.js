@@ -4,7 +4,13 @@ const AppError = require("../utils/AppError");
 const errorHandler = (err, req, res, next) => {
   let error = err;
 
-  if (!(error instanceof AppError)) {
+  if (err.name === "SequelizeUniqueConstraintError") {
+    error = new AppError(
+      "That value belongs to an existing or deleted record",
+      409,
+      "DUPLICATE_VALUE",
+    );
+  } else if (!(error instanceof AppError)) {
     logger.error(`Unhandled error: ${err.message}`);
     if (process.env.NODE_TEAMSYNC_NODE_ENV === "development") {
       console.error(err.stack);

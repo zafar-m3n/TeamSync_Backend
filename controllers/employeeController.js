@@ -7,6 +7,7 @@ const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
+const isValueTaken = require("../utils/isValueTaken");
 
 const DETAIL_INCLUDES = [
   "department",
@@ -66,14 +67,20 @@ const createEmployee = catchAsync(async (req, res) => {
     ...basicAndEmployment
   } = req.body;
 
-  const emailTaken = await db.User.findOne({ where: { email } });
-  if (emailTaken) {
-    throw new AppError("Email already in use", 409, "EMAIL_TAKEN");
+  if (await isValueTaken(db.User, "email", email)) {
+    throw new AppError(
+      "Email belongs to an existing or deleted account",
+      409,
+      "EMAIL_TAKEN",
+    );
   }
 
-  const codeTaken = await db.Employee.findOne({ where: { employeeCode } });
-  if (codeTaken) {
-    throw new AppError("Employee code already in use", 409, "EMPLOYEE_CODE_TAKEN");
+  if (await isValueTaken(db.Employee, "employeeCode", employeeCode)) {
+    throw new AppError(
+      "Employee code belongs to an existing or deleted employee",
+      409,
+      "EMPLOYEE_CODE_TAKEN",
+    );
   }
 
   await assertReferencesExist(basicAndEmployment);
@@ -198,18 +205,26 @@ const updateEmployee = catchAsync(async (req, res) => {
   }
 
   if (email && email !== employee.user.email) {
-    const emailTaken = await db.User.findOne({ where: { email, id: { [Op.ne]: employee.userId } } });
-    if (emailTaken) {
-      throw new AppError("Email already in use", 409, "EMAIL_TAKEN");
+    if (await isValueTaken(db.User, "email", email, { excludeId: employee.userId })) {
+      throw new AppError(
+        "Email belongs to an existing or deleted account",
+        409,
+        "EMAIL_TAKEN",
+      );
     }
   }
 
   if (employeeFields.employeeCode && employeeFields.employeeCode !== employee.employeeCode) {
-    const codeTaken = await db.Employee.findOne({
-      where: { employeeCode: employeeFields.employeeCode, id: { [Op.ne]: employee.id } },
-    });
-    if (codeTaken) {
-      throw new AppError("Employee code already in use", 409, "EMPLOYEE_CODE_TAKEN");
+    if (
+      await isValueTaken(db.Employee, "employeeCode", employeeFields.employeeCode, {
+        excludeId: employee.id,
+      })
+    ) {
+      throw new AppError(
+        "Employee code belongs to an existing or deleted employee",
+        409,
+        "EMPLOYEE_CODE_TAKEN",
+      );
     }
   }
 
