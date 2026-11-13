@@ -10,6 +10,9 @@ const errorHandler = (err, req, res, next) => {
       409,
       "DUPLICATE_VALUE",
     );
+  } else if (err.name === "SequelizeValidationError") {
+    const details = err.errors.map((e) => ({ field: e.path || "", message: e.message }));
+    error = new AppError("Validation failed", 400, "VALIDATION_ERROR", details);
   } else if (!(error instanceof AppError)) {
     logger.error(`Unhandled error: ${err.message}`);
     if (process.env.NODE_TEAMSYNC_NODE_ENV === "development") {
