@@ -2,6 +2,7 @@ const db = require("../models");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/apiResponse");
+const { invalidateRolePermissions } = require("../utils/hasPermission");
 
 const ADMIN_LOCKOUT_MESSAGE =
   "Cannot revoke Admin's own permission-management access — this would lock everyone out of the permissions screen";
@@ -45,6 +46,7 @@ const updatePermission = catchAsync(async (req, res) => {
 
   permission.allowed = allowed;
   await permission.save();
+  invalidateRolePermissions(permission.roleId);
 
   return sendSuccess(res, 200, permission);
 });
@@ -76,6 +78,7 @@ const bulkUpdatePermissions = catchAsync(async (req, res) => {
       await byId.get(id).update({ allowed }, { transaction: t });
     }
   });
+  new Set(permissions.map((p) => p.roleId)).forEach(invalidateRolePermissions);
 
   return sendSuccess(res, 200, { updated: updates.length });
 });

@@ -3,6 +3,7 @@ const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/apiResponse");
 const { PERMISSION_MATRIX } = require("../constants/permissionMatrix");
+const { invalidateRolePermissions } = require("../utils/hasPermission");
 
 const listRoles = catchAsync(async (req, res) => {
   const roles = await db.Role.findAll({ order: [["name", "ASC"]] });
@@ -30,6 +31,7 @@ const createRole = catchAsync(async (req, res) => {
 
     return created;
   });
+  invalidateRolePermissions(role.id);
 
   return sendSuccess(res, 201, role);
 });
