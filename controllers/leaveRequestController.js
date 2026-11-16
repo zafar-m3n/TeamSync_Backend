@@ -10,6 +10,7 @@ const hasPermission = require("../utils/hasPermission");
 const { markHalfDay } = require("../services/attendanceService");
 const { getRequesterEmployee } = require("../services/requesterService");
 const { lockBalance } = require("../services/leaveBalanceService");
+const { lockEmployee, assertNoOverlap } = require("../services/leaveRequestService");
 const { buildDateFilter } = require("../utils/queryHelpers");
 
 const computeDays = (startDate, endDate, isHalfDay) => {
@@ -52,13 +53,13 @@ const createLeaveRequest = catchAsync(async (req, res) => {
     throw new AppError("Leave type not found", 404, "LEAVE_TYPE_NOT_FOUND");
   }
 
-  const request = await db.LeaveRequest.create({
-    employeeId: requester.id,
-    leaveTypeId,
-    startDate,
-    endDate,
-    isHalfDay,
-    status: "Pending",
+  const request = await db.sequelize.transaction(async (t) => {
+    await lockEmployee(requester.id, t);
+    await assertNoOverlap({ employeeId: requester.id, startDate, endDate }, { transaction: t });
+    return db.LeaveRequest.create(
+      { employeeId: requester.id, leaveTypeId, startDate, endDate, isHalfDay, status: "Pending" },
+      { transaction: t },
+    );
   });
 
   return sendSuccess(res, 201, request);
@@ -165,6 +166,13 @@ const approveLeaveRequest = catchAsync(async (req, res) => {
       t,
       "Pending",
       new AppError("Only a pending request can be approved", 400, "NOT_PENDING"),
+    );
+
+    // Older overlapping pending requests may exist; only one of them can be approved.
+    await lockEmployee(locked.employeeId, t);
+    await assertNoOverlap(
+      { ...locked.get({ plain: true }), excludeId: locked.id },
+      { statuses: ["Approved"], transaction: t },
     );
 
     const daysRequested = computeDays(locked.startDate, locked.endDate, locked.isHalfDay);
