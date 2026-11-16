@@ -19,6 +19,10 @@ const bankingSchema = z.object({
   bankBranch: z.string().max(100).optional(),
 });
 
+// On update, null clears an optional value.
+const withNullableFields = (schema) =>
+  z.object(Object.fromEntries(Object.entries(schema.shape).map(([key, field]) => [key, field.nullable()])));
+
 const EMPLOYMENT_TYPES = ["Full-time", "Part-time", "Contract", "Intern", "Probation"];
 
 const createEmployeeSchema = z.object({
@@ -54,17 +58,17 @@ const updateEmployeeSchema = z.object({
     roleId: z.number().int().positive().optional(),
     employeeCode: z.string().min(1).max(30).optional(),
     fullName: z.string().min(1).max(150).optional(),
-    dob: z.string().optional(),
-    gender: z.string().max(20).optional(),
-    phone: z.string().max(30).optional(),
+    dob: z.string().nullable().optional(),
+    gender: z.string().max(20).nullable().optional(),
+    phone: z.string().max(30).nullable().optional(),
     departmentId: z.number().int().positive().nullable().optional(),
-    designation: z.string().max(100).optional(),
-    dateOfJoining: z.string().optional(),
+    designation: z.string().max(100).nullable().optional(),
+    dateOfJoining: z.string().nullable().optional(),
     employmentType: z.enum(EMPLOYMENT_TYPES).optional(),
     shiftId: z.number().int().positive().nullable().optional(),
     managerId: z.number().int().positive().nullable().optional(),
-    contact: contactSchema.optional(),
-    banking: bankingSchema.optional(),
+    contact: withNullableFields(contactSchema).optional(),
+    banking: withNullableFields(bankingSchema).optional(),
   }),
 });
 
