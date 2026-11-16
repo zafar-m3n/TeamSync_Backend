@@ -1,8 +1,10 @@
 const { z } = require("zod");
 
+const passwordSchema = z.string().min(8);
+
 const resetPasswordSchema = z.object({
   params: z.object({ id: z.coerce.number().int().positive() }),
-  body: z.object({ newPassword: z.string().min(8) }),
+  body: z.object({ newPassword: passwordSchema }),
 });
 
 const updateStatusSchema = z.object({
@@ -10,4 +12,4 @@ const updateStatusSchema = z.object({
   body: z.object({ isActive: z.boolean() }),
 });
 
-module.exports = { resetPasswordSchema, updateStatusSchema };
+module.exports = { passwordSchema, resetPasswordSchema, updateStatusSchema };

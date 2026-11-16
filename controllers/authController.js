@@ -1,11 +1,11 @@
-const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const db = require("../models");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
-const { sendSuccess } = require("../utils/apiResponse");
+const { sendSuccess, sendAction } = require("../utils/apiResponse");
 const { nowTz } = require("../utils/time");
 const { buildSessionUser } = require("../services/sessionService");
+const { hashPassword, passwordMatches } = require("../utils/password");
 
 const login = catchAsync(async (req, res) => {
   const { email, password } = req.body;
@@ -23,9 +23,7 @@ const login = catchAsync(async (req, res) => {
     throw new AppError("Account is inactive", 403, "ACCOUNT_INACTIVE");
   }
 
-  const passwordMatches = await bcrypt.compare(password, user.passwordHash);
-
-  if (!passwordMatches) {
+  if (!(await passwordMatches(password, user.passwordHash))) {
     throw new AppError("Invalid email or password", 401, "INVALID_CREDENTIALS");
   }
 
@@ -73,4 +71,20 @@ const me = catchAsync(async (req, res) => {
   return sendSuccess(res, 200, await buildSessionUser(user));
 });
 
-module.exports = { login, me };
+const changePassword = catchAsync(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const user = await db.User.findByPk(req.user.id);
+
+  if (!(await passwordMatches(currentPassword, user.passwordHash))) {
+    throw new AppError("Current password is incorrect", 400, "WRONG_PASSWORD", [
+      { field: "currentPassword", message: "Current password is incorrect" },
+    ]);
+  }
+
+  user.passwordHash = await hashPassword(newPassword);
+  await user.save();
+
+  return sendAction(res, "Password changed");
+});
+
+module.exports = { login, me, changePassword };

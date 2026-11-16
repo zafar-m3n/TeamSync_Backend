@@ -1,4 +1,5 @@
 const { z } = require("zod");
+const { passwordSchema } = require("./userValidation");
 
 const contactSchema = z.object({
   addressLine1: z.string().max(150).optional(),
@@ -24,7 +25,7 @@ const createEmployeeSchema = z.object({
   body: z.object({
     // Account
     email: z.string().email(),
-    initialPassword: z.string().min(8),
+    initialPassword: passwordSchema,
     roleId: z.number().int().positive(),
     // Basic Information
     employeeCode: z.string().min(1).max(30),

@@ -1,10 +1,10 @@
-const bcrypt = require("bcryptjs");
 const db = require("../models");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 const { sendSuccess, sendAction } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const { assertOutranks } = require("../services/roleRankService");
+const { hashPassword } = require("../utils/password");
 
 const resetPassword = catchAsync(async (req, res) => {
   const { id } = req.params;
@@ -18,8 +18,7 @@ const resetPassword = catchAsync(async (req, res) => {
 
   await assertOutranks(req, user.roleId);
 
-  const saltRounds = parseInt(process.env.NODE_TEAMSYNC_BCRYPT_SALT_ROUNDS, 10) || 10;
-  user.passwordHash = await bcrypt.hash(newPassword, saltRounds);
+  user.passwordHash = await hashPassword(newPassword);
   await user.save();
 
   return sendAction(res, "Password reset successfully");

@@ -1,5 +1,5 @@
 const fs = require("fs");
-const bcrypt = require("bcryptjs");
+const { hashPassword } = require("../utils/password");
 const db = require("../models");
 const { Op } = db.Sequelize;
 const AppError = require("../utils/AppError");
@@ -110,8 +110,7 @@ const createEmployee = catchAsync(async (req, res) => {
 
   await assertReferencesExist(basicAndEmployment);
 
-  const saltRounds = parseInt(process.env.NODE_TEAMSYNC_BCRYPT_SALT_ROUNDS, 10) || 10;
-  const passwordHash = await bcrypt.hash(initialPassword, saltRounds);
+  const passwordHash = await hashPassword(initialPassword);
 
   const { employee, user } = await db.sequelize.transaction(async (t) => {
     const createdUser = await db.User.create(
