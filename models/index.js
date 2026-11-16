@@ -65,6 +65,9 @@ AttendanceRecord.belongsTo(User, { foreignKey: "overridden_by", as: "overriddenB
 Employee.hasMany(LeaveBalance, { foreignKey: "employee_id", as: "leaveBalances" });
 LeaveBalance.belongsTo(Employee, { foreignKey: "employee_id", as: "employee" });
 
+LeaveType.hasMany(LeaveBalance, { foreignKey: "leave_type_id", as: "leaveBalances" });
+LeaveBalance.belongsTo(LeaveType, { foreignKey: "leave_type_id", as: "leaveType" });
+
 LeaveType.hasMany(LeaveRequest, { foreignKey: "leave_type_id", as: "leaveRequests" });
 LeaveRequest.belongsTo(LeaveType, { foreignKey: "leave_type_id", as: "leaveType" });
 

@@ -13,6 +13,10 @@ const LeaveBalance = sequelize.define(
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
     },
+    leaveTypeId: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: false,
+    },
     year: {
       type: DataTypes.SMALLINT.UNSIGNED,
       allowNull: false,
@@ -34,7 +38,7 @@ const LeaveBalance = sequelize.define(
     indexes: [
       {
         unique: true,
-        fields: ["employee_id", "year"],
+        fields: ["employee_id", "leave_type_id", "year"],
       },
     ],
   },
