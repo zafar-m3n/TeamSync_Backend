@@ -5,7 +5,7 @@ const { sendSuccess } = require("../utils/apiResponse");
 const hasPermission = require("../utils/hasPermission");
 const { getRequesterEmployee } = require("../services/requesterService");
 const { nowTz } = require("../utils/time");
-const { listBalances, balanceEntry } = require("../services/leaveBalanceService");
+const { listBalances, balanceEntry, lockBalance } = require("../services/leaveBalanceService");
 
 const currentYear = () => nowTz().year();
 
@@ -28,14 +28,19 @@ const setLeaveBalance = catchAsync(async (req, res) => {
     throw new AppError("Leave type not found", 404, "LEAVE_TYPE_NOT_FOUND");
   }
 
-  const [balance, created] = await db.LeaveBalance.findOrCreate({
-    where: { employeeId, leaveTypeId, year },
-    defaults: { totalDays, usedDays: 0 },
+  const balance = await db.sequelize.transaction(async (t) => {
+    const locked = await lockBalance({ employeeId, leaveTypeId, year }, t, { create: true });
+    const usedDays = parseFloat(locked.usedDays);
+    if (totalDays < usedDays) {
+      throw new AppError(
+        `Total days cannot be below the ${usedDays} day(s) already used`,
+        400,
+        "TOTAL_BELOW_USED",
+        [{ field: "totalDays", message: `Must be at least ${usedDays} (already used)` }],
+      );
+    }
+    return locked.update({ totalDays }, { transaction: t });
   });
-
-  if (!created) {
-    await balance.update({ totalDays });
-  }
 
   return sendSuccess(res, 200, balanceEntry(balance, leaveType));
 });
