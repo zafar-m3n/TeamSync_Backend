@@ -1,10 +1,37 @@
+const fs = require("fs");
+const multer = require("multer");
 const logger = require("../utils/logger");
 const AppError = require("../utils/AppError");
+
+const MULTER_ERRORS = {
+  LIMIT_FILE_SIZE: ["File exceeds the maximum upload size", "FILE_TOO_LARGE"],
+  LIMIT_UNEXPECTED_FILE: ["Unexpected file field", "UNEXPECTED_FILE"],
+};
+
+// Multer stores files before validation and the controller run, so a failed
+// request must remove what it uploaded.
+const removeUploadedFiles = (req) => {
+  const files = [req.file, ...(Array.isArray(req.files) ? req.files : Object.values(req.files || {}).flat())];
+  for (const file of files) {
+    if (file?.path) {
+      fs.unlink(file.path, (unlinkError) => {
+        if (unlinkError && unlinkError.code !== "ENOENT") {
+          logger.error(`Could not remove upload ${file.path}: ${unlinkError.message}`);
+        }
+      });
+    }
+  }
+};
 
 const errorHandler = (err, req, res, next) => {
   let error = err;
 
-  if (err.name === "SequelizeUniqueConstraintError") {
+  removeUploadedFiles(req);
+
+  if (err instanceof multer.MulterError) {
+    const [message, code] = MULTER_ERRORS[err.code] || [err.message, "UPLOAD_ERROR"];
+    error = new AppError(message, 400, code);
+  } else if (err.name === "SequelizeUniqueConstraintError") {
     error = new AppError(
       "That value belongs to an existing or deleted record",
       409,
