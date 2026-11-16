@@ -203,15 +203,23 @@ const rejectLeaveRequest = catchAsync(async (req, res) => {
     throw new AppError("Leave request not found", 404, "NOT_FOUND");
   }
 
-  if (request.status !== "Pending") {
-    throw new AppError("Only a pending request can be rejected", 400, "NOT_PENDING");
-  }
-
   await assertCanActOnRequest(req, request);
 
-  await request.update({ status: "Rejected", approvedBy: req.user.id, actedAt: new Date() });
+  const rejected = await db.sequelize.transaction(async (t) => {
+    const locked = await lockRequest(
+      request.id,
+      t,
+      "Pending",
+      new AppError("Only a pending request can be rejected", 400, "NOT_PENDING"),
+    );
+    await locked.update(
+      { status: "Rejected", approvedBy: req.user.id, actedAt: new Date() },
+      { transaction: t },
+    );
+    return locked;
+  });
 
-  return sendSuccess(res, 200, request);
+  return sendSuccess(res, 200, rejected);
 });
 
 const cancelLeaveRequest = catchAsync(async (req, res) => {
@@ -240,8 +248,18 @@ const cancelLeaveRequest = catchAsync(async (req, res) => {
       }
     }
 
-    await request.update({ status: "Cancelled" });
-    return sendSuccess(res, 200, request);
+    const cancelled = await db.sequelize.transaction(async (t) => {
+      const locked = await lockRequest(
+        request.id,
+        t,
+        "Pending",
+        new AppError("This request is no longer pending", 400, "NOT_PENDING"),
+      );
+      await locked.update({ status: "Cancelled" }, { transaction: t });
+      return locked;
+    });
+
+    return sendSuccess(res, 200, cancelled);
   }
 
   if (request.status === "Approved") {
