@@ -17,7 +17,11 @@ const {
   withLeaveDays,
 } = require("../services/leaveRequestService");
 const { leaveDaysFor } = require("../services/workingDayService");
-const { afterResponse, notifyLeaveSubmitted } = require("../services/notificationService");
+const {
+  afterResponse,
+  notifyLeaveSubmitted,
+  notifyLeaveDecision,
+} = require("../services/notificationService");
 const { buildDateFilter } = require("../utils/queryHelpers");
 
 const requireWorkingDays = (days) => {
@@ -226,6 +230,7 @@ const approveLeaveRequest = catchAsync(async (req, res) => {
     return locked;
   });
 
+  afterResponse(res, () => notifyLeaveDecision(approved.id));
   return sendSuccess(res, 200, approved);
 });
 
@@ -251,6 +256,7 @@ const rejectLeaveRequest = catchAsync(async (req, res) => {
     return locked;
   });
 
+  afterResponse(res, () => notifyLeaveDecision(rejected.id));
   return sendSuccess(res, 200, rejected);
 });
 

@@ -110,6 +110,48 @@ const notifyLeaveSubmitted = async (requestId) => {
   );
 };
 
+// Approved or rejected: tell the employee, with dates, type, day count and who decided.
+const notifyLeaveDecision = async (requestId) => {
+  const db = require("../models");
+  const { withLeaveDays } = require("./leaveRequestService");
+  const request = await db.LeaveRequest.findByPk(requestId, {
+    include: [
+      { association: "leaveType", attributes: ["name"] },
+      {
+        association: "employee",
+        attributes: ["id", "fullName"],
+        include: { association: "user", attributes: ["email", "isActive"] },
+      },
+      {
+        association: "approvedByUser",
+        attributes: ["email"],
+        include: { association: "employee", attributes: ["fullName"] },
+      },
+    ],
+  });
+  if (!request || !["Approved", "Rejected"].includes(request.status)) {
+    return;
+  }
+  const user = request.employee?.user;
+  if (!user?.isActive) {
+    logger.info(`Leave request ${request.id}: employee has no active account, decision email skipped`);
+    return;
+  }
+
+  const [{ days }] = await withLeaveDays([request]);
+  const decision = request.status.toLowerCase();
+  const decidedBy = request.approvedByUser?.employee?.fullName ?? request.approvedByUser?.email;
+  await sendToEach([recipientOf(user, request.employee.fullName)], `Your leave request was ${decision}`, (r) =>
+    compose({
+      greeting: `Hi ${r.name ?? "there"},`,
+      lines: [
+        `Your leave request was ${decision}${decidedBy ? ` by ${decidedBy}` : ""}: ${describeLeave(request, days)}.`,
+      ],
+      link: { label: "See your leave in TeamSync", url: appLink("/my-leave") },
+    }),
+  );
+};
+
 module.exports = {
   afterResponse,
   compose,
@@ -118,4 +160,5 @@ module.exports = {
   describeLeave,
   appLink,
   notifyLeaveSubmitted,
+  notifyLeaveDecision,
 };
