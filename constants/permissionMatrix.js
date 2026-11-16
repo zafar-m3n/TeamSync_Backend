@@ -12,6 +12,7 @@ const PERMISSION_MATRIX = [
   { module: "shifts", action: "assign", roles: ["HR", "Admin"] },
   { module: "attendance", action: "edit", roles: ["HR", "Admin"] },
   { module: "attendance", action: "override", roles: ["HR", "Admin", "Manager"] },
+  { module: "attendance", action: "clock", roles: ["Admin", "HR", "Manager", "Employee"] },
   { module: "attendance", action: "view_own", roles: ["Admin", "HR", "Manager", "Employee"] },
   { module: "attendance", action: "view_team", roles: ["Manager"] },
   { module: "attendance", action: "view_all", roles: ["HR", "Admin"] },

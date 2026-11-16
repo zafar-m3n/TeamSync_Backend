@@ -8,6 +8,22 @@ const hasPermission = require("../utils/hasPermission");
 const { getRequesterEmployee } = require("../services/requesterService");
 const { todayTz } = require("../utils/time");
 const { buildDateFilter } = require("../utils/queryHelpers");
+const { clockIn, clockOut, clockStatus } = require("../services/attendanceService");
+
+const clockInMe = catchAsync(async (req, res) => {
+  const requester = await getRequesterEmployee(req);
+  return sendSuccess(res, 201, await clockIn(requester.id));
+});
+
+const clockOutMe = catchAsync(async (req, res) => {
+  const requester = await getRequesterEmployee(req);
+  return sendSuccess(res, 200, await clockOut(requester.id));
+});
+
+const getMyClockStatus = catchAsync(async (req, res) => {
+  const requester = await getRequesterEmployee(req);
+  return sendSuccess(res, 200, await clockStatus(requester.id));
+});
 
 const getMyAttendance = catchAsync(async (req, res) => {
   const requester = await getRequesterEmployee(req);
@@ -145,6 +161,9 @@ const overrideAttendance = catchAsync(async (req, res) => {
 });
 
 module.exports = {
+  clockInMe,
+  clockOutMe,
+  getMyClockStatus,
   getMyAttendance,
   getTeamAttendance,
   listAllAttendance,

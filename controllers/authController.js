@@ -2,7 +2,6 @@ const db = require("../models");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 const { sendSuccess, sendAction } = require("../utils/apiResponse");
-const { nowTz } = require("../utils/time");
 const {
   buildSessionUser,
   signToken,
@@ -29,36 +28,6 @@ const login = catchAsync(async (req, res) => {
 
   if (!(await passwordMatches(password, user.passwordHash))) {
     throw new AppError("Invalid email or password", 401, "INVALID_CREDENTIALS");
-  }
-
-  // --- Attendance clock-in (after credentials verified, before responding) ---
-  try {
-    const employee = await db.Employee.findOne({ where: { userId: user.id }, include: "shift" });
-
-    if (employee && employee.shift) {
-      const now = nowTz();
-      const today = now.format("YYYY-MM-DD");
-
-      const existing = await db.AttendanceRecord.findOne({
-        where: { employeeId: employee.id, date: today },
-      });
-
-      if (!existing) {
-        const [startHour, startMinute] = employee.shift.startTime.split(":");
-        const shiftStart = now.hour(Number(startHour)).minute(Number(startMinute)).second(0);
-        const graceDeadline = shiftStart.add(employee.shift.gracePeriodMinutes, "minute");
-        const status = now.isAfter(graceDeadline) ? "Late" : "Present";
-
-        await db.AttendanceRecord.create({
-          employeeId: employee.id,
-          date: today,
-          clockIn: now.toDate(),
-          status,
-        });
-      }
-    }
-  } catch (err) {
-    require("../utils/logger").error(`Attendance clock-in failed for user ${user.id}: ${err.message}`);
   }
 
   return sendSuccess(res, 200, { token: signToken(user), user: await buildSessionUser(user) });
