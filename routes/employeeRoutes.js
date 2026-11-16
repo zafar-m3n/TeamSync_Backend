@@ -11,6 +11,7 @@ const {
   updateEmployeeSchema,
   deleteEmployeeSchema,
   uploadDocumentSchema,
+  documentParamsSchema,
   assignShiftSchema,
 } = require("../validations/employeeValidation");
 
@@ -64,6 +65,14 @@ router.post(
   uploadEmployeeDocument.single("file"),
   validate(uploadDocumentSchema),
   employeeController.uploadDocument,
+);
+
+// No checkPermission — view_all or view_own, authorized inside the controller.
+router.get(
+  "/:id/documents/:documentId/download",
+  verifyToken,
+  validate(documentParamsSchema),
+  employeeController.downloadDocument,
 );
 
 router.delete(

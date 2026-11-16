@@ -18,7 +18,14 @@ const app = express();
 // Behind a reverse proxy, set this so req.ip (used by the password rate limits) is the client.
 app.set("trust proxy", parseTrustProxy(process.env.NODE_TEAMSYNC_TRUST_PROXY));
 
-app.use(cors({ origin: process.env.NODE_TEAMSYNC_CLIENT_URL, credentials: true }));
+// Content-Disposition is exposed so the client can read a download's file name.
+app.use(
+  cors({
+    origin: process.env.NODE_TEAMSYNC_CLIENT_URL,
+    credentials: true,
+    exposedHeaders: ["Content-Disposition"],
+  }),
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

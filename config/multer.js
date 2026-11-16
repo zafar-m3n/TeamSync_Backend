@@ -2,6 +2,7 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const AppError = require("../utils/AppError");
+const { UPLOADS_ROOT } = require("../utils/uploads");
 
 const ALLOWED_MIME_TYPES = [
   "application/pdf",
@@ -12,7 +13,7 @@ const ALLOWED_MIME_TYPES = [
 ];
 
 const createUploader = (subfolder) => {
-  const destination = path.join(__dirname, "..", "uploads", subfolder);
+  const destination = path.join(UPLOADS_ROOT, subfolder);
 
   if (!fs.existsSync(destination)) {
     fs.mkdirSync(destination, { recursive: true });
@@ -38,6 +39,8 @@ const createUploader = (subfolder) => {
   return multer({
     storage,
     fileFilter,
+    // Browsers send non-ASCII file names as UTF-8.
+    defParamCharset: "utf8",
     limits: { fileSize: maxSizeBytes },
   });
 };

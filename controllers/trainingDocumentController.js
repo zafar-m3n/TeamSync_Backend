@@ -6,6 +6,7 @@ const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
 const { getRequesterEmployee } = require("../services/requesterService");
 const { assignmentScopeOr } = require("../utils/queryHelpers");
+const { sendUpload } = require("../utils/uploads");
 
 const uploadDocument = catchAsync(async (req, res) => {
   if (!req.file) {
@@ -23,6 +24,8 @@ const uploadDocument = catchAsync(async (req, res) => {
     title,
     description,
     filePath: req.file.path,
+    originalName: req.file.originalname,
+    mimeType: req.file.mimetype,
     categoryId,
     uploadedBy: req.user.id,
   });
@@ -85,36 +88,57 @@ const getAssignedToMe = catchAsync(async (req, res) => {
   return sendSuccess(res, 200, documents);
 });
 
-const getDocumentById = catchAsync(async (req, res) => {
-  const document = await db.TrainingDocument.findByPk(req.params.id, { include: "category" });
-  if (!document) {
-    throw new AppError("Training document not found", 404, "NOT_FOUND");
-  }
-
-  const canViewAll = await hasPermission(req.user.roleId, "training", "view_all");
-  if (canViewAll) {
-    return sendSuccess(res, 200, document);
+// view_all, your own upload (view_own_uploads), or assigned to you (view_assigned).
+const assertCanViewDocument = async (req, document) => {
+  if (await hasPermission(req.user.roleId, "training", "view_all")) {
+    return;
   }
 
   const canViewOwnUploads = await hasPermission(req.user.roleId, "training", "view_own_uploads");
   if (canViewOwnUploads && document.uploadedBy === req.user.id) {
-    return sendSuccess(res, 200, document);
+    return;
   }
 
-  const canViewAssigned = await hasPermission(req.user.roleId, "training", "view_assigned");
-  if (canViewAssigned) {
+  if (await hasPermission(req.user.roleId, "training", "view_assigned")) {
     const requester = await getRequesterEmployee(req, { required: false });
     if (requester) {
       const assignment = await db.TrainingAssignment.findOne({
         where: { documentId: document.id, ...assignmentScopeOr(requester) },
       });
       if (assignment) {
-        return sendSuccess(res, 200, document);
+        return;
       }
     }
   }
 
   throw new AppError("You do not have permission to view this training document", 403, "FORBIDDEN");
+};
+
+const getDocumentById = catchAsync(async (req, res) => {
+  const document = await db.TrainingDocument.findByPk(req.params.id, { include: "category" });
+  if (!document) {
+    throw new AppError("Training document not found", 404, "NOT_FOUND");
+  }
+
+  await assertCanViewDocument(req, document);
+  return sendSuccess(res, 200, document);
 });
 
-module.exports = { uploadDocument, getMyUploads, listAllDocuments, getAssignedToMe, getDocumentById };
+const downloadDocument = catchAsync(async (req, res) => {
+  const document = await db.TrainingDocument.scope("withFilePath").findByPk(req.params.id);
+  if (!document) {
+    throw new AppError("Training document not found", 404, "NOT_FOUND");
+  }
+
+  await assertCanViewDocument(req, document);
+  await sendUpload(res, document);
+});
+
+module.exports = {
+  uploadDocument,
+  getMyUploads,
+  listAllDocuments,
+  getAssignedToMe,
+  getDocumentById,
+  downloadDocument,
+};

@@ -8,4 +8,8 @@ const uploadTrainingDocumentSchema = z.object({
   }),
 });
 
-module.exports = { uploadTrainingDocumentSchema };
+const documentIdSchema = z.object({
+  params: z.object({ id: z.coerce.number().int().positive() }),
+});
+
+module.exports = { uploadTrainingDocumentSchema, documentIdSchema };

@@ -8,6 +8,7 @@ const { sendSuccess, sendDeleted } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
 const isValueTaken = require("../utils/isValueTaken");
+const { sendUpload } = require("../utils/uploads");
 const { getRequesterEmployee } = require("../services/requesterService");
 const { assertCanAssignRole, assertOutranks } = require("../services/roleRankService");
 
@@ -374,10 +375,45 @@ const uploadDocument = catchAsync(async (req, res) => {
     employeeId: employee.id,
     docName: req.body.docName,
     filePath: req.file.path,
+    originalName: req.file.originalname,
+    mimeType: req.file.mimetype,
     uploadDate: new Date(),
   });
 
   return sendSuccess(res, 201, document);
+});
+
+// Documents follow the full-profile rules: view_all, or view_own for yourself.
+// Team managers only get the limited shape, which has no documents.
+const assertCanViewDocuments = async (req, target) => {
+  if (await hasPermission(req.user.roleId, "employees", "view_all")) {
+    return;
+  }
+  if (await hasPermission(req.user.roleId, "employees", "view_own")) {
+    const requester = await getRequesterEmployee(req, { required: false });
+    if (requester && requester.id === target.id) {
+      return;
+    }
+  }
+  throw new AppError("You do not have permission to view this employee's documents", 403, "FORBIDDEN");
+};
+
+const downloadDocument = catchAsync(async (req, res) => {
+  const target = await db.Employee.findByPk(req.params.id);
+  if (!target) {
+    throw new AppError("Employee not found", 404, "NOT_FOUND");
+  }
+
+  await assertCanViewDocuments(req, target);
+
+  const document = await db.EmployeeDocument.scope("withFilePath").findOne({
+    where: { id: req.params.documentId, employeeId: target.id },
+  });
+  if (!document) {
+    throw new AppError("Document not found", 404, "NOT_FOUND");
+  }
+
+  await sendUpload(res, document);
 });
 
 const deleteDocument = catchAsync(async (req, res) => {
@@ -428,6 +464,7 @@ module.exports = {
   updateEmployee,
   deleteEmployee,
   uploadDocument,
+  downloadDocument,
   deleteDocument,
   assignShift,
 };

@@ -22,6 +22,14 @@ const TrainingDocument = sequelize.define(
       type: DataTypes.STRING(255),
       allowNull: false,
     },
+    originalName: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+    },
+    mimeType: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+    },
     categoryId: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,

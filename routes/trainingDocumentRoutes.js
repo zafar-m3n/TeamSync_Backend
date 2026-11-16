@@ -6,7 +6,10 @@ const { verifyToken } = require("../middleware/auth");
 const { checkPermission } = require("../middleware/permission");
 const validate = require("../middleware/validate");
 const { createUploader } = require("../config/multer");
-const { uploadTrainingDocumentSchema } = require("../validations/trainingDocumentValidation");
+const {
+  uploadTrainingDocumentSchema,
+  documentIdSchema,
+} = require("../validations/trainingDocumentValidation");
 
 const uploadTrainingFile = createUploader("training-documents");
 
@@ -23,6 +26,7 @@ router.get("/assigned-to-me", verifyToken, checkPermission("training", "view_ass
 router.get("/", verifyToken, checkPermission("training", "view_all"), controller.listAllDocuments);
 
 // No checkPermission — mixed-scope, authorized inside the controller.
+router.get("/:id/download", verifyToken, validate(documentIdSchema), controller.downloadDocument);
 router.get("/:id", verifyToken, controller.getDocumentById);
 
 module.exports = router;

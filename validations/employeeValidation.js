@@ -83,6 +83,13 @@ const uploadDocumentSchema = z.object({
   }),
 });
 
+const documentParamsSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int().positive(),
+    documentId: z.coerce.number().int().positive(),
+  }),
+});
+
 const assignShiftSchema = z.object({
   params: z.object({ id: z.coerce.number().int().positive() }),
   body: z.object({ shiftId: z.number().int().positive().nullable() }),
@@ -93,5 +100,6 @@ module.exports = {
   updateEmployeeSchema,
   deleteEmployeeSchema,
   uploadDocumentSchema,
+  documentParamsSchema,
   assignShiftSchema,
 };
