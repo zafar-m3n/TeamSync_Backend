@@ -1,7 +1,7 @@
 const db = require("../models");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
-const { sendSuccess } = require("../utils/apiResponse");
+const { sendSuccess, sendDeleted } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
 const { getRequesterEmployee } = require("../services/requesterService");
@@ -134,6 +134,30 @@ const downloadDocument = catchAsync(async (req, res) => {
   await sendUpload(res, document);
 });
 
+// view_all holders can delete any document; uploaders can delete their own.
+// The row is soft-deleted, so the file stays on disk.
+const deleteDocument = catchAsync(async (req, res) => {
+  const document = await db.TrainingDocument.findByPk(req.params.id);
+  if (!document) {
+    throw new AppError("Training document not found", 404, "NOT_FOUND");
+  }
+
+  const canDeleteAny = await hasPermission(req.user.roleId, "training", "view_all");
+  if (!canDeleteAny) {
+    const canUpload = await hasPermission(req.user.roleId, "training", "upload");
+    if (!(canUpload && document.uploadedBy === req.user.id)) {
+      throw new AppError("You do not have permission to delete this training document", 403, "FORBIDDEN");
+    }
+  }
+
+  await db.sequelize.transaction(async (transaction) => {
+    await db.TrainingAssignment.destroy({ where: { documentId: document.id }, transaction });
+    await document.destroy({ transaction });
+  });
+
+  return sendDeleted(res, document.id, "Training document deleted");
+});
+
 module.exports = {
   uploadDocument,
   getMyUploads,
@@ -141,4 +165,5 @@ module.exports = {
   getAssignedToMe,
   getDocumentById,
   downloadDocument,
+  deleteDocument,
 };

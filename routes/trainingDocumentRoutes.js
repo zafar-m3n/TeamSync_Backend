@@ -28,5 +28,6 @@ router.get("/", verifyToken, checkPermission("training", "view_all"), controller
 // No checkPermission — mixed-scope, authorized inside the controller.
 router.get("/:id/download", verifyToken, validate(documentIdSchema), controller.downloadDocument);
 router.get("/:id", verifyToken, controller.getDocumentById);
+router.delete("/:id", verifyToken, validate(documentIdSchema), controller.deleteDocument);
 
 module.exports = router;
