@@ -4,6 +4,7 @@ const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
+const hasPermission = require("../utils/hasPermission");
 const { getRequesterEmployee } = require("../services/requesterService");
 const { todayTz } = require("../utils/time");
 const { buildDateFilter } = require("../utils/queryHelpers");
@@ -103,11 +104,32 @@ const updateAttendance = catchAsync(async (req, res) => {
   return sendSuccess(res, 200, record);
 });
 
+// Nobody overrides their own record; attendance:view_all holders may override anyone
+// else, everyone else only their direct reports.
+const assertCanOverride = async (req, record) => {
+  const requester = await getRequesterEmployee(req, { required: false });
+
+  if (requester && record.employeeId === requester.id) {
+    throw new AppError("You cannot override your own attendance", 403, "CANNOT_OVERRIDE_OWN_RECORD");
+  }
+
+  if (await hasPermission(req.user.roleId, "attendance", "view_all")) {
+    return;
+  }
+
+  const employee = await db.Employee.findByPk(record.employeeId, { attributes: ["id", "managerId"] });
+  if (!requester || !employee || employee.managerId !== requester.id) {
+    throw new AppError("This employee is not your direct report", 403, "NOT_YOUR_DIRECT_REPORT");
+  }
+};
+
 const overrideAttendance = catchAsync(async (req, res) => {
   const record = await db.AttendanceRecord.findByPk(req.params.id);
   if (!record) {
     throw new AppError("Attendance record not found", 404, "NOT_FOUND");
   }
+
+  await assertCanOverride(req, record);
 
   if (record.status !== "Absent") {
     throw new AppError("Only an Absent record can be corrected through this endpoint", 400, "NOT_ABSENT");
