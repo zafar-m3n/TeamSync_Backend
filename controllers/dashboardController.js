@@ -57,11 +57,14 @@ const buildAssignedTraining = async (employee) => {
   return { count: documents.length, recent: documents.slice(0, 5) };
 };
 
+// The frontend picks its dashboard view from `layout`.
+const sendDashboard = (res, layout, data) => sendSuccess(res, 200, { layout, ...data });
+
 const employeeDashboard = async (req, res) => {
   const requester = await getRequesterEmployee(req, { required: false });
 
   if (!requester) {
-    return sendSuccess(res, 200, {
+    return sendDashboard(res, "employee", {
       clockInStatus: { hasClockedIn: false },
       leaveBalance: { totalDays: 0, usedDays: 0, remaining: 0 },
       assignedTraining: { count: 0, recent: [] },
@@ -85,7 +88,7 @@ const employeeDashboard = async (req, res) => {
     order: [["targetDate", "ASC"]],
   });
 
-  return sendSuccess(res, 200, { clockInStatus, leaveBalance, assignedTraining, goalProgress });
+  return sendDashboard(res, "employee", { clockInStatus, leaveBalance, assignedTraining, goalProgress });
 };
 
 const managerDashboard = async (req, res) => {
@@ -115,7 +118,7 @@ const managerDashboard = async (req, res) => {
     order: [["targetDate", "ASC"]],
   });
 
-  return sendSuccess(res, 200, { teamAttendanceToday, pendingLeaveApprovals, teamGoalProgress });
+  return sendDashboard(res, "manager", { teamAttendanceToday, pendingLeaveApprovals, teamGoalProgress });
 };
 
 const adminDashboard = async (req, res) => {
@@ -237,7 +240,7 @@ const adminDashboard = async (req, res) => {
     };
   }
 
-  return sendSuccess(res, 200, {
+  return sendDashboard(res, "admin", {
     orgAttendanceSnapshot,
     pendingLeaveApprovals: { total: pendingTotal, items: pendingItems },
     employeeCountByDepartment,
