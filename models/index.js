@@ -13,6 +13,7 @@ const AttendanceRecord = require("./AttendanceRecord");
 const LeaveType = require("./LeaveType");
 const LeaveBalance = require("./LeaveBalance");
 const LeaveRequest = require("./LeaveRequest");
+const Holiday = require("./Holiday");
 const Goal = require("./Goal");
 const TrainingCategory = require("./TrainingCategory");
 const TrainingDocument = require("./TrainingDocument");
@@ -121,6 +122,7 @@ const db = {
   LeaveType,
   LeaveBalance,
   LeaveRequest,
+  Holiday,
   Goal,
   TrainingCategory,
   TrainingDocument,

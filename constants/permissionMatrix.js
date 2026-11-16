@@ -28,6 +28,10 @@ const PERMISSION_MATRIX = [
   { module: "leave", action: "view_team", roles: ["Manager"] },
   { module: "leave", action: "view_all", roles: ["HR", "Admin"] },
 
+  // Holidays
+  { module: "holidays", action: "manage", roles: ["HR", "Admin"] },
+  { module: "holidays", action: "view", roles: ["Admin", "HR", "Manager", "Employee"] },
+
   // Performance Reviews (Phase 9)
   { module: "goals", action: "create", roles: ["Manager"] },
   { module: "goals", action: "edit", roles: ["Manager"] },
