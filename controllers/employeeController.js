@@ -9,6 +9,7 @@ const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
 const isValueTaken = require("../utils/isValueTaken");
 const { getRequesterEmployee } = require("../services/requesterService");
+const { assertCanAssignRole } = require("../services/roleRankService");
 
 const DETAIL_INCLUDES = [
   "department",
@@ -67,6 +68,8 @@ const createEmployee = catchAsync(async (req, res) => {
     banking,
     ...basicAndEmployment
   } = req.body;
+
+  await assertCanAssignRole(req, roleId);
 
   if (await isValueTaken(db.User, "email", email)) {
     throw new AppError(
@@ -201,6 +204,11 @@ const updateEmployee = catchAsync(async (req, res) => {
     throw new AppError("Employee not found", 404, "NOT_FOUND");
   }
 
+  const roleChanged = roleId !== undefined && roleId !== employee.user.roleId;
+  if (roleChanged) {
+    await assertCanAssignRole(req, roleId);
+  }
+
   if (email && email !== employee.user.email) {
     if (await isValueTaken(db.User, "email", email, { excludeId: employee.userId })) {
       throw new AppError(
@@ -232,7 +240,7 @@ const updateEmployee = catchAsync(async (req, res) => {
       await employee.user.update({ email }, { transaction: t });
     }
 
-    if (roleId) {
+    if (roleChanged) {
       await employee.user.update({ roleId }, { transaction: t });
     }
 
