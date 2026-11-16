@@ -9,7 +9,7 @@ const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
 const isValueTaken = require("../utils/isValueTaken");
 const { getRequesterEmployee } = require("../services/requesterService");
-const { assertCanAssignRole } = require("../services/roleRankService");
+const { assertCanAssignRole, assertOutranks } = require("../services/roleRankService");
 
 const DETAIL_INCLUDES = [
   "department",
@@ -138,7 +138,11 @@ const listEmployees = catchAsync(async (req, res) => {
     limit,
     offset,
     order: [["fullName", "ASC"]],
-    include: ["department", "shift"],
+    include: [
+      "department",
+      "shift",
+      { association: "user", attributes: ["id"], include: [{ association: "role", attributes: ["id", "name", "isCustom"] }] },
+    ],
   });
 
   return sendSuccess(res, 200, rows, buildPaginationMeta(page, limit, count));
@@ -206,6 +210,7 @@ const updateEmployee = catchAsync(async (req, res) => {
 
   const roleChanged = roleId !== undefined && roleId !== employee.user.roleId;
   if (roleChanged) {
+    await assertOutranks(req, employee.user.roleId);
     await assertCanAssignRole(req, roleId);
   }
 
@@ -287,6 +292,10 @@ const deleteEmployee = catchAsync(async (req, res) => {
 
   if (req.user.id === employee.userId) {
     throw new AppError("You cannot delete your own account", 400, "CANNOT_DELETE_SELF");
+  }
+
+  if (employee.user) {
+    await assertOutranks(req, employee.user.roleId);
   }
 
   const reportCount = await db.Employee.count({ where: { managerId: employee.id } });

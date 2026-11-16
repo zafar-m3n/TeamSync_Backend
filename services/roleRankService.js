@@ -1,6 +1,6 @@
 const AppError = require("../utils/AppError");
 const hasPermission = require("../utils/hasPermission");
-const { rankOf } = require("../utils/roleRank");
+const { ROLE_RANK, rankOf } = require("../utils/roleRank");
 
 const findRole = (roleId) => {
   const db = require("../models");
@@ -28,4 +28,23 @@ const assertCanAssignRole = async (req, roleId) => {
   }
 };
 
-module.exports = { assertCanAssignRole };
+// Admin may act on anyone; everyone else only on users ranked strictly below them.
+const assertOutranks = async (req, targetRoleId) => {
+  const [requesterRole, targetRole] = await Promise.all([
+    findRole(req.user.roleId),
+    findRole(targetRoleId),
+  ]);
+  const requesterRank = rankOf(requesterRole);
+
+  if (requesterRank === ROLE_RANK.Admin || requesterRank > rankOf(targetRole)) {
+    return;
+  }
+
+  throw new AppError(
+    "You cannot act on a user whose role is equal to or above yours",
+    403,
+    "INSUFFICIENT_ROLE_RANK",
+  );
+};
+
+module.exports = { assertCanAssignRole, assertOutranks };

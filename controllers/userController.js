@@ -4,6 +4,7 @@ const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 const { sendSuccess, sendAction } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
+const { assertOutranks } = require("../services/roleRankService");
 
 const resetPassword = catchAsync(async (req, res) => {
   const { id } = req.params;
@@ -14,6 +15,8 @@ const resetPassword = catchAsync(async (req, res) => {
   if (!user) {
     throw new AppError("User not found", 404, "NOT_FOUND");
   }
+
+  await assertOutranks(req, user.roleId);
 
   const saltRounds = parseInt(process.env.NODE_TEAMSYNC_BCRYPT_SALT_ROUNDS, 10) || 10;
   user.passwordHash = await bcrypt.hash(newPassword, saltRounds);
@@ -70,6 +73,8 @@ const updateStatus = catchAsync(async (req, res) => {
   if (req.user.id === user.id && isActive === false) {
     throw new AppError("You cannot deactivate your own account", 400, "CANNOT_DEACTIVATE_SELF");
   }
+
+  await assertOutranks(req, user.roleId);
 
   user.isActive = isActive;
   await user.save();
