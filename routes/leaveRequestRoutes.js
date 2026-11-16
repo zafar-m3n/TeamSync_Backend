@@ -5,7 +5,7 @@ const leaveRequestController = require("../controllers/leaveRequestController");
 const { verifyToken } = require("../middleware/auth");
 const { checkPermission } = require("../middleware/permission");
 const validate = require("../middleware/validate");
-const { createLeaveRequestSchema } = require("../validations/leaveRequestValidation");
+const { createLeaveRequestSchema, previewLeaveDaysSchema } = require("../validations/leaveRequestValidation");
 
 router.post(
   "/",
@@ -13,6 +13,13 @@ router.post(
   checkPermission("leave", "submit"),
   validate(createLeaveRequestSchema),
   leaveRequestController.createLeaveRequest,
+);
+router.get(
+  "/preview",
+  verifyToken,
+  checkPermission("leave", "submit"),
+  validate(previewLeaveDaysSchema),
+  leaveRequestController.previewLeaveDays,
 );
 router.get("/me", verifyToken, checkPermission("leave", "view_own"), leaveRequestController.getMyLeaveRequests);
 router.get("/team", verifyToken, checkPermission("leave", "view_team"), leaveRequestController.getTeamLeaveRequests);

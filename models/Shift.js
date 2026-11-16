@@ -1,5 +1,6 @@
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/database");
+const jsonColumn = require("../utils/jsonColumn");
 
 const Shift = sequelize.define(
   "Shift",
@@ -26,10 +27,7 @@ const Shift = sequelize.define(
       allowNull: false,
       defaultValue: 0,
     },
-    workingDays: {
-      type: DataTypes.JSON,
-      allowNull: false,
-    },
+    workingDays: jsonColumn("workingDays", { allowNull: false }),
   },
   {
     tableName: "shifts",

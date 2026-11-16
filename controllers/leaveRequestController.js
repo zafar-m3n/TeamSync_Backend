@@ -11,13 +11,24 @@ const { markHalfDay } = require("../services/attendanceService");
 const { getRequesterEmployee } = require("../services/requesterService");
 const { lockBalance } = require("../services/leaveBalanceService");
 const { lockEmployee, assertNoOverlap } = require("../services/leaveRequestService");
+const { leaveDaysFor } = require("../services/workingDayService");
 const { buildDateFilter } = require("../utils/queryHelpers");
 
-const computeDays = (startDate, endDate, isHalfDay) => {
-  if (isHalfDay) {
-    return 0.5;
+// What approval deducted before days_by_year existed: calendar days, all from the start year.
+const legacyDeduction = ({ startDate, endDate, isHalfDay }) => ({
+  [dayjs(startDate).year()]: isHalfDay ? 0.5 : dayjs(endDate).diff(dayjs(startDate), "day") + 1,
+});
+
+const requireWorkingDays = (days) => {
+  if (days.total === 0) {
+    throw new AppError(
+      "The selected dates contain no working days",
+      400,
+      "NO_WORKING_DAYS",
+      [{ field: "startDate", message: "No working days in this range" }],
+    );
   }
-  return dayjs(endDate).diff(dayjs(startDate), "day") + 1;
+  return days;
 };
 
 // Approve/reject always needs leave:approve and never applies to your own request.
@@ -56,6 +67,9 @@ const createLeaveRequest = catchAsync(async (req, res) => {
   const request = await db.sequelize.transaction(async (t) => {
     await lockEmployee(requester.id, t);
     await assertNoOverlap({ employeeId: requester.id, startDate, endDate }, { transaction: t });
+    requireWorkingDays(
+      await leaveDaysFor(requester.id, { startDate, endDate, isHalfDay }, { transaction: t }),
+    );
     return db.LeaveRequest.create(
       { employeeId: requester.id, leaveTypeId, startDate, endDate, isHalfDay, status: "Pending" },
       { transaction: t },
@@ -63,6 +77,13 @@ const createLeaveRequest = catchAsync(async (req, res) => {
   });
 
   return sendSuccess(res, 201, request);
+});
+
+// Working days the requester's leave range would cost, for the request form.
+const previewLeaveDays = catchAsync(async (req, res) => {
+  const requester = await getRequesterEmployee(req);
+  const days = await leaveDaysFor(requester.id, req.validatedQuery);
+  return sendSuccess(res, 200, { days: days.total, byYear: days.byYear });
 });
 
 const getMyLeaveRequests = catchAsync(async (req, res) => {
@@ -175,17 +196,23 @@ const approveLeaveRequest = catchAsync(async (req, res) => {
       { statuses: ["Approved"], transaction: t },
     );
 
-    const daysRequested = computeDays(locked.startDate, locked.endDate, locked.isHalfDay);
-    const balance = await lockBalance(balanceKey(locked), t, { create: true });
+    const { total } = requireWorkingDays(await leaveDaysFor(locked.employeeId, locked, { transaction: t }));
+    const key = balanceKey(locked);
+    const balance = await lockBalance(key, t, { create: true });
 
     const remaining = parseFloat(balance.totalDays) - parseFloat(balance.usedDays);
-    if (daysRequested > remaining) {
+    if (total > remaining) {
       throw new AppError("Insufficient leave balance", 400, "INSUFFICIENT_LEAVE_BALANCE");
     }
 
-    await balance.increment("usedDays", { by: daysRequested, transaction: t });
+    await balance.increment("usedDays", { by: total, transaction: t });
     await locked.update(
-      { status: "Approved", approvedBy: req.user.id, actedAt: new Date() },
+      {
+        status: "Approved",
+        approvedBy: req.user.id,
+        actedAt: new Date(),
+        daysByYear: { [key.year]: total },
+      },
       { transaction: t },
     );
 
@@ -280,12 +307,14 @@ const cancelLeaveRequest = catchAsync(async (req, res) => {
         new AppError("This request is already in a final state", 400, "CANNOT_CANCEL"),
       );
 
-      const daysRequested = computeDays(locked.startDate, locked.endDate, locked.isHalfDay);
-      const balance = await lockBalance(balanceKey(locked), t);
-
-      if (balance) {
-        const refunded = Math.max(0, parseFloat(balance.usedDays) - daysRequested);
-        await balance.update({ usedDays: refunded }, { transaction: t });
+      // Refund exactly what approval deducted, year by year.
+      const deducted = locked.daysByYear ?? legacyDeduction(locked);
+      for (const [year, days] of Object.entries(deducted)) {
+        const balance = await lockBalance({ ...balanceKey(locked), year: Number(year) }, t);
+        if (balance) {
+          const usedDays = Math.max(0, parseFloat(balance.usedDays) - days);
+          await balance.update({ usedDays }, { transaction: t });
+        }
       }
       await locked.update({ status: "Cancelled" }, { transaction: t });
 
@@ -300,6 +329,7 @@ const cancelLeaveRequest = catchAsync(async (req, res) => {
 
 module.exports = {
   createLeaveRequest,
+  previewLeaveDays,
   getMyLeaveRequests,
   getTeamLeaveRequests,
   listAllLeaveRequests,

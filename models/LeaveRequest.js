@@ -1,5 +1,6 @@
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/database");
+const jsonColumn = require("../utils/jsonColumn");
 
 const LeaveRequest = sequelize.define(
   "LeaveRequest",
@@ -30,6 +31,7 @@ const LeaveRequest = sequelize.define(
       allowNull: false,
       defaultValue: false,
     },
+    daysByYear: jsonColumn("daysByYear", { allowNull: true }),
     status: {
       type: DataTypes.ENUM("Pending", "Approved", "Rejected", "Cancelled"),
       allowNull: false,
