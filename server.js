@@ -11,8 +11,12 @@ const AppError = require("./utils/AppError");
 const { testConnection } = require("./config/database");
 const logger = require("./utils/logger");
 const { scheduleAttendanceCron } = require("./jobs/attendanceCron");
+const { parseTrustProxy } = require("./utils/trustProxy");
 
 const app = express();
+
+// Behind a reverse proxy, set this so req.ip (used by the password rate limits) is the client.
+app.set("trust proxy", parseTrustProxy(process.env.NODE_TEAMSYNC_TRUST_PROXY));
 
 app.use(cors({ origin: process.env.NODE_TEAMSYNC_CLIENT_URL, credentials: true }));
 app.use(express.json());
