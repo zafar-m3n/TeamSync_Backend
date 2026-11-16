@@ -1,10 +1,24 @@
 const db = require("../models");
+const { Op } = db.Sequelize;
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 const { sendSuccess, sendDeleted } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
 const { getRequesterEmployee } = require("../services/requesterService");
+
+// Mirrors the unique indexes on (document_id, employee_id) and (document_id, department_id).
+const assertNotAssigned = async ({ documentId, employeeId, departmentId }) => {
+  const targets = [];
+  if (employeeId != null) targets.push({ employeeId });
+  if (departmentId != null) targets.push({ departmentId });
+
+  const existing = await db.TrainingAssignment.findOne({ where: { documentId, [Op.or]: targets } });
+  if (existing) {
+    const target = employeeId != null && existing.employeeId === employeeId ? "employee" : "department";
+    throw new AppError(`This document is already assigned to that ${target}`, 409, "ASSIGNMENT_EXISTS");
+  }
+};
 
 const createAssignment = catchAsync(async (req, res) => {
   const { documentId, employeeId, departmentId } = req.body;
@@ -36,12 +50,23 @@ const createAssignment = catchAsync(async (req, res) => {
     }
   }
 
-  const assignment = await db.TrainingAssignment.create({
-    documentId,
-    employeeId,
-    departmentId,
-    assignedBy: req.user.id,
-  });
+  await assertNotAssigned({ documentId, employeeId, departmentId });
+
+  let assignment;
+  try {
+    assignment = await db.TrainingAssignment.create({
+      documentId,
+      employeeId,
+      departmentId,
+      assignedBy: req.user.id,
+    });
+  } catch (error) {
+    // A concurrent request won the race to the unique index.
+    if (error.name === "SequelizeUniqueConstraintError") {
+      throw new AppError("This document is already assigned to that target", 409, "ASSIGNMENT_EXISTS");
+    }
+    throw error;
+  }
 
   return sendSuccess(res, 201, assignment);
 });
