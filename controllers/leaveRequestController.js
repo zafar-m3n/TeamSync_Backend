@@ -1,5 +1,3 @@
-const dayjs = require("dayjs");
-
 const db = require("../models");
 const { Op } = db.Sequelize;
 const AppError = require("../utils/AppError");
@@ -10,14 +8,16 @@ const hasPermission = require("../utils/hasPermission");
 const { markHalfDay } = require("../services/attendanceService");
 const { getRequesterEmployee } = require("../services/requesterService");
 const { lockBalance } = require("../services/leaveBalanceService");
-const { lockEmployee, assertNoOverlap } = require("../services/leaveRequestService");
+const {
+  lockEmployee,
+  assertNoOverlap,
+  assertBalanceForSubmit,
+  deductByYear,
+  legacyDeduction,
+  withLeaveDays,
+} = require("../services/leaveRequestService");
 const { leaveDaysFor } = require("../services/workingDayService");
 const { buildDateFilter } = require("../utils/queryHelpers");
-
-// What approval deducted before days_by_year existed: calendar days, all from the start year.
-const legacyDeduction = ({ startDate, endDate, isHalfDay }) => ({
-  [dayjs(startDate).year()]: isHalfDay ? 0.5 : dayjs(endDate).diff(dayjs(startDate), "day") + 1,
-});
 
 const requireWorkingDays = (days) => {
   if (days.total === 0) {
@@ -67,9 +67,10 @@ const createLeaveRequest = catchAsync(async (req, res) => {
   const request = await db.sequelize.transaction(async (t) => {
     await lockEmployee(requester.id, t);
     await assertNoOverlap({ employeeId: requester.id, startDate, endDate }, { transaction: t });
-    requireWorkingDays(
+    const { byYear } = requireWorkingDays(
       await leaveDaysFor(requester.id, { startDate, endDate, isHalfDay }, { transaction: t }),
     );
+    await assertBalanceForSubmit({ employeeId: requester.id, leaveTypeId, byYear }, t);
     return db.LeaveRequest.create(
       { employeeId: requester.id, leaveTypeId, startDate, endDate, isHalfDay, status: "Pending" },
       { transaction: t },
@@ -104,7 +105,7 @@ const getMyLeaveRequests = catchAsync(async (req, res) => {
     offset,
   });
 
-  return sendSuccess(res, 200, rows, buildPaginationMeta(page, limit, count));
+  return sendSuccess(res, 200, await withLeaveDays(rows), buildPaginationMeta(page, limit, count));
 });
 
 const getTeamLeaveRequests = catchAsync(async (req, res) => {
@@ -127,7 +128,7 @@ const getTeamLeaveRequests = catchAsync(async (req, res) => {
     order: [["createdAt", "DESC"]],
   });
 
-  return sendSuccess(res, 200, records);
+  return sendSuccess(res, 200, await withLeaveDays(records));
 });
 
 const listAllLeaveRequests = catchAsync(async (req, res) => {
@@ -154,7 +155,7 @@ const listAllLeaveRequests = catchAsync(async (req, res) => {
     distinct: true,
   });
 
-  return sendSuccess(res, 200, rows, buildPaginationMeta(page, limit, count));
+  return sendSuccess(res, 200, await withLeaveDays(rows), buildPaginationMeta(page, limit, count));
 });
 
 // Re-reads the request with a row lock (SELECT … FOR UPDATE) so concurrent state
@@ -166,12 +167,6 @@ const lockRequest = async (id, transaction, expectedStatus, error) => {
   }
   return locked;
 };
-
-const balanceKey = (request) => ({
-  employeeId: request.employeeId,
-  leaveTypeId: request.leaveTypeId,
-  year: dayjs(request.startDate).year(),
-});
 
 const approveLeaveRequest = catchAsync(async (req, res) => {
   const request = await db.LeaveRequest.findByPk(req.params.id, { include: "employee" });
@@ -196,22 +191,19 @@ const approveLeaveRequest = catchAsync(async (req, res) => {
       { statuses: ["Approved"], transaction: t },
     );
 
-    const { total } = requireWorkingDays(await leaveDaysFor(locked.employeeId, locked, { transaction: t }));
-    const key = balanceKey(locked);
-    const balance = await lockBalance(key, t, { create: true });
-
-    const remaining = parseFloat(balance.totalDays) - parseFloat(balance.usedDays);
-    if (total > remaining) {
-      throw new AppError("Insufficient leave balance", 400, "INSUFFICIENT_LEAVE_BALANCE");
-    }
-
-    await balance.increment("usedDays", { by: total, transaction: t });
+    const { byYear } = requireWorkingDays(
+      await leaveDaysFor(locked.employeeId, locked, { transaction: t }),
+    );
+    const daysByYear = await deductByYear(
+      { employeeId: locked.employeeId, leaveTypeId: locked.leaveTypeId, byYear },
+      t,
+    );
     await locked.update(
       {
         status: "Approved",
         approvedBy: req.user.id,
         actedAt: new Date(),
-        daysByYear: { [key.year]: total },
+        daysByYear,
       },
       { transaction: t },
     );
@@ -310,7 +302,10 @@ const cancelLeaveRequest = catchAsync(async (req, res) => {
       // Refund exactly what approval deducted, year by year.
       const deducted = locked.daysByYear ?? legacyDeduction(locked);
       for (const [year, days] of Object.entries(deducted)) {
-        const balance = await lockBalance({ ...balanceKey(locked), year: Number(year) }, t);
+        const balance = await lockBalance(
+          { employeeId: locked.employeeId, leaveTypeId: locked.leaveTypeId, year: Number(year) },
+          t,
+        );
         if (balance) {
           const usedDays = Math.max(0, parseFloat(balance.usedDays) - days);
           await balance.update({ usedDays }, { transaction: t });

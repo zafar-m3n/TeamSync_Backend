@@ -46,8 +46,37 @@ const leaveDaysFor = async (employeeId, range, { transaction } = {}) => {
   return countWorkingDays(range, workingDaysOf(employee?.shift), holidays);
 };
 
+// The same for many requests at once: one query for shifts, one for holidays.
+// Returns a Map of request id → { total, byYear }.
+const leaveDaysForMany = async (requests, { transaction } = {}) => {
+  const result = new Map();
+  if (!requests.length) {
+    return result;
+  }
+  const db = require("../models");
+  const employeeIds = [...new Set(requests.map((r) => r.employeeId))];
+  const employees = await db.Employee.findAll({
+    where: { id: employeeIds },
+    attributes: ["id"],
+    include: { association: "shift", attributes: ["workingDays"] },
+    paranoid: false,
+    transaction,
+  });
+  const daysByEmployee = new Map(employees.map((e) => [e.id, workingDaysOf(e.shift)]));
+  const from = requests.reduce((min, r) => (r.startDate < min ? r.startDate : min), requests[0].startDate);
+  const to = requests.reduce((max, r) => (r.endDate > max ? r.endDate : max), requests[0].endDate);
+  const holidays = await loadHolidays(from, to, { transaction });
+
+  for (const r of requests) {
+    const workingDays = daysByEmployee.get(r.employeeId) ?? DEFAULT_WORKING_DAYS;
+    result.set(r.id, countWorkingDays(r, workingDays, holidays));
+  }
+  return result;
+};
+
 module.exports = {
   DEFAULT_WORKING_DAYS,
+  leaveDaysForMany,
   workingDaysOf,
   isWorkingDay,
   countWorkingDays,
