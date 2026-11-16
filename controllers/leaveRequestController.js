@@ -18,18 +18,23 @@ const computeDays = (startDate, endDate, isHalfDay) => {
   return dayjs(endDate).diff(dayjs(startDate), "day") + 1;
 };
 
-// HR/Admin (leave:view_all) can act on any request; a Manager with leave:approve
-// can act only on their own direct reports' requests.
+// Approve/reject always needs leave:approve and never applies to your own request.
+// leave:view_all holders may act on anyone else's; others only on direct reports'.
 const assertCanActOnRequest = async (req, request) => {
-  const canActBroadly = await hasPermission(req.user.roleId, "leave", "view_all");
-  if (canActBroadly) {
+  if (!(await hasPermission(req.user.roleId, "leave", "approve"))) {
+    throw new AppError("You do not have permission to act on this leave request", 403, "FORBIDDEN");
+  }
+
+  if (request.employee && request.employee.userId === req.user.id) {
+    throw new AppError("You cannot act on your own leave request", 403, "CANNOT_ACT_ON_OWN_REQUEST");
+  }
+
+  if (await hasPermission(req.user.roleId, "leave", "view_all")) {
     return;
   }
 
-  const canApprove = await hasPermission(req.user.roleId, "leave", "approve");
   const requester = await getRequesterEmployee(req, { required: false });
-
-  if (canApprove && requester && request.employee && request.employee.managerId === requester.id) {
+  if (requester && request.employee && request.employee.managerId === requester.id) {
     return;
   }
 
