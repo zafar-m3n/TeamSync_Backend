@@ -1,5 +1,5 @@
 const { getRolePermissions } = require("../utils/hasPermission");
-const { rankOf } = require("../utils/roleRank");
+const { outranksAll } = require("../utils/roleRank");
 
 // The signed-in user plus everything the frontend needs to gate the UI.
 const buildSessionUser = async (user) => {
@@ -15,7 +15,8 @@ const buildSessionUser = async (user) => {
     roleId: user.roleId,
     roleName: user.role.name,
     roleIsCustom: user.role.isCustom,
-    roleRank: rankOf(user.role),
+    roleRank: user.role.rank,
+    outranksAll: outranksAll(user.role),
     employeeId: employee ? employee.id : null,
     permissions: [...permissions].sort(),
   };

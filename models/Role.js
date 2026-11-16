@@ -1,5 +1,6 @@
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/database");
+const { rankOf } = require("../utils/roleRank");
 
 const Role = sequelize.define(
   "Role",
@@ -22,6 +23,12 @@ const Role = sequelize.define(
     description: {
       type: DataTypes.STRING(255),
       allowNull: true,
+    },
+    rank: {
+      type: DataTypes.VIRTUAL,
+      get() {
+        return rankOf({ name: this.getDataValue("name"), isCustom: this.getDataValue("isCustom") });
+      },
     },
   },
   {

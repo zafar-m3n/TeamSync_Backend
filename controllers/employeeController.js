@@ -162,7 +162,7 @@ const listEmployees = catchAsync(async (req, res) => {
     include: [
       "department",
       "shift",
-      { association: "user", attributes: ["id"], include: [{ association: "role", attributes: ["id", "name", "isCustom"] }] },
+      { association: "user", attributes: ["id"], include: [{ association: "role", attributes: ["id", "name", "isCustom", "rank"] }] },
     ],
   });
 

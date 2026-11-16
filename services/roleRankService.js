@@ -1,6 +1,6 @@
 const AppError = require("../utils/AppError");
 const hasPermission = require("../utils/hasPermission");
-const { ROLE_RANK, rankOf } = require("../utils/roleRank");
+const { rankOf, outranks } = require("../utils/roleRank");
 
 const findRole = (roleId) => {
   const db = require("../models");
@@ -34,9 +34,7 @@ const assertOutranks = async (req, targetRoleId) => {
     findRole(req.user.roleId),
     findRole(targetRoleId),
   ]);
-  const requesterRank = rankOf(requesterRole);
-
-  if (requesterRank === ROLE_RANK.Admin || requesterRank > rankOf(targetRole)) {
+  if (outranks(requesterRole, targetRole)) {
     return;
   }
 
