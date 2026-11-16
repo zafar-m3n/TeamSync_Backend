@@ -5,6 +5,7 @@ const { sendSuccess, sendAction } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const { assertOutranks } = require("../services/roleRankService");
 const { hashPassword } = require("../utils/password");
+const { setPasswordAndRevoke } = require("../services/sessionService");
 
 const resetPassword = catchAsync(async (req, res) => {
   const { id } = req.params;
@@ -18,8 +19,7 @@ const resetPassword = catchAsync(async (req, res) => {
 
   await assertOutranks(req, user.roleId);
 
-  user.passwordHash = await hashPassword(newPassword);
-  await user.save();
+  await setPasswordAndRevoke(user, await hashPassword(newPassword));
 
   return sendAction(res, "Password reset successfully");
 });
@@ -41,7 +41,7 @@ const listUsers = catchAsync(async (req, res) => {
     offset,
     order: [["email", "ASC"]],
     include: "role",
-    attributes: { exclude: ["passwordHash"] },
+    attributes: { exclude: db.User.SECRET_ATTRIBUTES },
   });
 
   return sendSuccess(res, 200, rows, buildPaginationMeta(page, limit, count));
@@ -50,7 +50,7 @@ const listUsers = catchAsync(async (req, res) => {
 const getUser = catchAsync(async (req, res) => {
   const user = await db.User.findByPk(req.params.id, {
     include: "role",
-    attributes: { exclude: ["passwordHash"] },
+    attributes: { exclude: db.User.SECRET_ATTRIBUTES },
   });
 
   if (!user) {
@@ -80,7 +80,7 @@ const updateStatus = catchAsync(async (req, res) => {
 
   const updated = await db.User.findByPk(user.id, {
     include: "role",
-    attributes: { exclude: ["passwordHash"] },
+    attributes: { exclude: db.User.SECRET_ATTRIBUTES },
   });
 
   return sendSuccess(res, 200, updated);

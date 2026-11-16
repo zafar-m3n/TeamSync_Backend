@@ -27,6 +27,11 @@ const User = sequelize.define(
       allowNull: false,
       defaultValue: true,
     },
+    tokenVersion: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: false,
+      defaultValue: 0,
+    },
   },
   {
     tableName: "users",
@@ -34,5 +39,8 @@ const User = sequelize.define(
     paranoid: true,
   },
 );
+
+// Never sent to clients.
+User.SECRET_ATTRIBUTES = ["passwordHash", "tokenVersion"];
 
 module.exports = User;

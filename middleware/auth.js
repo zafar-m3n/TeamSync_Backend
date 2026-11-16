@@ -27,6 +27,11 @@ const verifyToken = catchAsync(async (req, res, next) => {
     throw new AppError("Account is inactive or no longer exists", 401, "ACCOUNT_INACTIVE");
   }
 
+  // Tokens issued before token versions existed carry no `tv` and count as version 0.
+  if ((decoded.tv ?? 0) !== user.tokenVersion) {
+    throw new AppError("Session has ended, please log in again", 401, "TOKEN_REVOKED");
+  }
+
   req.user = {
     id: user.id,
     roleId: user.roleId,

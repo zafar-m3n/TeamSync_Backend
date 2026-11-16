@@ -9,6 +9,7 @@ const { loginSchema, changePasswordSchema } = require("../validations/authValida
 
 router.post("/login", loginRateLimit, validate(loginSchema), authController.login);
 router.get("/me", verifyToken, authController.me);
+router.post("/logout", verifyToken, authController.logout);
 router.post(
   "/change-password",
   verifyToken,

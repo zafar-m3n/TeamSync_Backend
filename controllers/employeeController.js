@@ -18,7 +18,7 @@ const DETAIL_INCLUDES = [
   "contact",
   "banking",
   "documents",
-  { association: "user", attributes: { exclude: ["passwordHash"] }, include: ["role"] },
+  { association: "user", attributes: { exclude: db.User.SECRET_ATTRIBUTES }, include: ["role"] },
 ];
 
 const limitedShape = (employee) => ({

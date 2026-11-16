@@ -1,10 +1,14 @@
-const jwt = require("jsonwebtoken");
 const db = require("../models");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 const { sendSuccess, sendAction } = require("../utils/apiResponse");
 const { nowTz } = require("../utils/time");
-const { buildSessionUser } = require("../services/sessionService");
+const {
+  buildSessionUser,
+  signToken,
+  revokeSessions,
+  setPasswordAndRevoke,
+} = require("../services/sessionService");
 const { hashPassword, passwordMatches } = require("../utils/password");
 
 const login = catchAsync(async (req, res) => {
@@ -57,13 +61,7 @@ const login = catchAsync(async (req, res) => {
     require("../utils/logger").error(`Attendance clock-in failed for user ${user.id}: ${err.message}`);
   }
 
-  const token = jwt.sign(
-    { userId: user.id, roleId: user.roleId, roleName: user.role.name },
-    process.env.NODE_TEAMSYNC_JWT_SECRET,
-    { expiresIn: process.env.NODE_TEAMSYNC_JWT_EXPIRES_IN },
-  );
-
-  return sendSuccess(res, 200, { token, user: await buildSessionUser(user) });
+  return sendSuccess(res, 200, { token: signToken(user), user: await buildSessionUser(user) });
 });
 
 const me = catchAsync(async (req, res) => {
@@ -81,10 +79,15 @@ const changePassword = catchAsync(async (req, res) => {
     ]);
   }
 
-  user.passwordHash = await hashPassword(newPassword);
-  await user.save();
+  await setPasswordAndRevoke(user, await hashPassword(newPassword));
 
-  return sendAction(res, "Password changed");
+  // Every other session is now revoked; this one continues with a fresh token.
+  return sendSuccess(res, 200, { token: signToken(user) });
 });
 
-module.exports = { login, me, changePassword };
+const logout = catchAsync(async (req, res) => {
+  await revokeSessions(req.user.id);
+  return sendAction(res, "Logged out");
+});
+
+module.exports = { login, me, changePassword, logout };
