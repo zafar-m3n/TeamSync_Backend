@@ -382,7 +382,7 @@ const uploadDocument = catchAsync(async (req, res) => {
 });
 
 const deleteDocument = catchAsync(async (req, res) => {
-  const document = await db.EmployeeDocument.findByPk(req.params.documentId);
+  const document = await db.EmployeeDocument.scope("withFilePath").findByPk(req.params.documentId);
 
   if (!document || String(document.employeeId) !== String(req.params.id)) {
     throw new AppError("Document not found", 404, "NOT_FOUND");

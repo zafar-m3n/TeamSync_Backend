@@ -1,5 +1,6 @@
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/database");
+const hideAttributes = require("../utils/hideAttributes");
 
 const TrainingDocument = sequelize.define(
   "TrainingDocument",
@@ -36,5 +37,7 @@ const TrainingDocument = sequelize.define(
     paranoid: true,
   },
 );
+
+hideAttributes(TrainingDocument, ["filePath"], "withFilePath");
 
 module.exports = TrainingDocument;

@@ -1,5 +1,6 @@
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/database");
+const hideAttributes = require("../utils/hideAttributes");
 
 const EmployeeDocument = sequelize.define(
   "EmployeeDocument",
@@ -31,5 +32,7 @@ const EmployeeDocument = sequelize.define(
     timestamps: true,
   },
 );
+
+hideAttributes(EmployeeDocument, ["filePath"], "withFilePath");
 
 module.exports = EmployeeDocument;
