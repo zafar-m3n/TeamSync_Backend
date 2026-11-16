@@ -5,10 +5,11 @@ const roleController = require("../controllers/roleController");
 const { verifyToken } = require("../middleware/auth");
 const { checkPermission } = require("../middleware/permission");
 const validate = require("../middleware/validate");
-const { createRoleSchema, updateRoleSchema } = require("../validations/roleValidation");
+const { createRoleSchema, updateRoleSchema, roleIdSchema } = require("../validations/roleValidation");
 
 router.get("/", verifyToken, checkPermission("roles", "view"), roleController.listRoles);
 router.post("/", verifyToken, checkPermission("roles", "manage"), validate(createRoleSchema), roleController.createRole);
 router.patch("/:id", verifyToken, checkPermission("roles", "manage"), validate(updateRoleSchema), roleController.updateRole);
+router.delete("/:id", verifyToken, checkPermission("roles", "manage"), validate(roleIdSchema), roleController.deleteRole);
 
 module.exports = router;

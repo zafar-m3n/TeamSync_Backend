@@ -10,8 +10,12 @@ const createRoleSchema = z.object({
   }),
 });
 
+const roleIdParams = z.object({ id: z.coerce.number().int().positive() });
+
+const roleIdSchema = z.object({ params: roleIdParams });
+
 const updateRoleSchema = z.object({
-  params: z.object({ id: z.coerce.number().int().positive() }),
+  params: roleIdParams,
   body: z
     .object({
       name: roleName.optional(),
@@ -22,4 +26,4 @@ const updateRoleSchema = z.object({
     }),
 });
 
-module.exports = { createRoleSchema, updateRoleSchema };
+module.exports = { createRoleSchema, updateRoleSchema, roleIdSchema };
