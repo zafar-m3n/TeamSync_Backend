@@ -11,9 +11,10 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Resolves to nodemailer's send info, or null if sending failed (logged, never thrown).
 const sendEmail = async ({ to, subject, html, text }) => {
   try {
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: `"${process.env.NODE_TEAMSYNC_SMTP_FROM_NAME}" <${process.env.NODE_TEAMSYNC_SMTP_FROM_EMAIL}>`,
       to,
       subject,
@@ -21,13 +22,12 @@ const sendEmail = async ({ to, subject, html, text }) => {
       text,
     });
     logger.success(`Email sent to ${to}: ${subject}`);
+    return info;
   } catch (err) {
+    // Never rethrow: a failed notification must not undo or block the action
+    // that triggered it.
     logger.error(`Failed to send email to ${to}: ${err.message}`);
-    // Deliberately does not rethrow — a failed notification email must
-    // never roll back or block a business action that already succeeded
-    // (e.g. a leave request that was already approved in the DB).
-    // Callers that need to know about failure can inspect the resolved
-    // value in future, but for v1, failures are logged only.
+    return null;
   }
 };
 
