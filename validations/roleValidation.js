@@ -1,10 +1,25 @@
 const { z } = require("zod");
 
+const roleName = z.string().min(1).max(50);
+const roleDescription = z.string().max(255);
+
 const createRoleSchema = z.object({
   body: z.object({
-    name: z.string().min(1).max(50),
-    description: z.string().max(255).optional(),
+    name: roleName,
+    description: roleDescription.optional(),
   }),
 });
 
-module.exports = { createRoleSchema };
+const updateRoleSchema = z.object({
+  params: z.object({ id: z.coerce.number().int().positive() }),
+  body: z
+    .object({
+      name: roleName.optional(),
+      description: roleDescription.nullable().optional(),
+    })
+    .refine((b) => b.name !== undefined || b.description !== undefined, {
+      message: "Provide a name or description to update",
+    }),
+});
+
+module.exports = { createRoleSchema, updateRoleSchema };
