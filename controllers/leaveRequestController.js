@@ -134,50 +134,67 @@ const listAllLeaveRequests = catchAsync(async (req, res) => {
   return sendSuccess(res, 200, rows, buildPaginationMeta(page, limit, count));
 });
 
+// Re-reads the request with a row lock (SELECT … FOR UPDATE) so concurrent state
+// changes on it are serialized, then checks it is still in the expected status.
+const lockRequest = async (id, transaction, expectedStatus, error) => {
+  const locked = await db.LeaveRequest.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
+  if (!locked || locked.status !== expectedStatus) {
+    throw error;
+  }
+  return locked;
+};
+
+const lockBalance = async (employeeId, year, transaction, { create = false } = {}) => {
+  if (create) {
+    await db.LeaveBalance.findOrCreate({
+      where: { employeeId, year },
+      defaults: { totalDays: 0, usedDays: 0 },
+      transaction,
+    });
+  }
+  return db.LeaveBalance.findOne({ where: { employeeId, year }, transaction, lock: transaction.LOCK.UPDATE });
+};
+
 const approveLeaveRequest = catchAsync(async (req, res) => {
   const request = await db.LeaveRequest.findByPk(req.params.id, { include: "employee" });
   if (!request) {
     throw new AppError("Leave request not found", 404, "NOT_FOUND");
   }
 
-  if (request.status !== "Pending") {
-    throw new AppError("Only a pending request can be approved", 400, "NOT_PENDING");
-  }
-
   await assertCanActOnRequest(req, request);
 
-  const daysRequested = computeDays(request.startDate, request.endDate, request.isHalfDay);
-  const year = dayjs(request.startDate).year();
+  const approved = await db.sequelize.transaction(async (t) => {
+    const locked = await lockRequest(
+      request.id,
+      t,
+      "Pending",
+      new AppError("Only a pending request can be approved", 400, "NOT_PENDING"),
+    );
 
-  const [balance] = await db.LeaveBalance.findOrCreate({
-    where: { employeeId: request.employeeId, year },
-    defaults: { totalDays: 0, usedDays: 0 },
-  });
+    const daysRequested = computeDays(locked.startDate, locked.endDate, locked.isHalfDay);
+    const balance = await lockBalance(locked.employeeId, dayjs(locked.startDate).year(), t, {
+      create: true,
+    });
 
-  const remaining = parseFloat(balance.totalDays) - parseFloat(balance.usedDays);
-  if (daysRequested > remaining) {
-    throw new AppError("Insufficient leave balance", 400, "INSUFFICIENT_LEAVE_BALANCE");
-  }
+    const remaining = parseFloat(balance.totalDays) - parseFloat(balance.usedDays);
+    if (daysRequested > remaining) {
+      throw new AppError("Insufficient leave balance", 400, "INSUFFICIENT_LEAVE_BALANCE");
+    }
 
-  await db.sequelize.transaction(async (t) => {
     await balance.increment("usedDays", { by: daysRequested, transaction: t });
-    await request.update(
+    await locked.update(
       { status: "Approved", approvedBy: req.user.id, actedAt: new Date() },
       { transaction: t },
     );
+
+    if (locked.isHalfDay) {
+      await markHalfDay(locked.employeeId, locked.startDate, { transaction: t });
+    }
+
+    return locked;
   });
 
-  if (request.isHalfDay) {
-    try {
-      await markHalfDay(request.employeeId, request.startDate);
-    } catch (err) {
-      require("../utils/logger").error(
-        `markHalfDay failed for leave request ${request.id}: ${err.message}`,
-      );
-    }
-  }
-
-  return sendSuccess(res, 200, request);
+  return sendSuccess(res, 200, approved);
 });
 
 const rejectLeaveRequest = catchAsync(async (req, res) => {
@@ -235,23 +252,27 @@ const cancelLeaveRequest = catchAsync(async (req, res) => {
       throw new AppError("You do not have permission to cancel this leave request", 403, "FORBIDDEN");
     }
 
-    const daysRequested = computeDays(request.startDate, request.endDate, request.isHalfDay);
-    const year = dayjs(request.startDate).year();
+    const cancelled = await db.sequelize.transaction(async (t) => {
+      const locked = await lockRequest(
+        request.id,
+        t,
+        "Approved",
+        new AppError("This request is already in a final state", 400, "CANNOT_CANCEL"),
+      );
 
-    await db.sequelize.transaction(async (t) => {
-      await request.update({ status: "Cancelled" }, { transaction: t });
+      const daysRequested = computeDays(locked.startDate, locked.endDate, locked.isHalfDay);
+      const balance = await lockBalance(locked.employeeId, dayjs(locked.startDate).year(), t);
 
-      const balance = await db.LeaveBalance.findOne({
-        where: { employeeId: request.employeeId, year },
-        transaction: t,
-      });
       if (balance) {
         const refunded = Math.max(0, parseFloat(balance.usedDays) - daysRequested);
         await balance.update({ usedDays: refunded }, { transaction: t });
       }
+      await locked.update({ status: "Cancelled" }, { transaction: t });
+
+      return locked;
     });
 
-    return sendSuccess(res, 200, request);
+    return sendSuccess(res, 200, cancelled);
   }
 
   throw new AppError("This request is already in a final state", 400, "CANNOT_CANCEL");
