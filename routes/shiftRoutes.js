@@ -5,7 +5,7 @@ const shiftController = require("../controllers/shiftController");
 const { verifyToken } = require("../middleware/auth");
 const { checkPermission } = require("../middleware/permission");
 const validate = require("../middleware/validate");
-const { createShiftSchema, updateShiftSchema } = require("../validations/shiftValidation");
+const { createShiftSchema, updateShiftSchema, shiftIdSchema } = require("../validations/shiftValidation");
 
 router.post(
   "/",
@@ -22,6 +22,13 @@ router.patch(
   checkPermission("shifts", "manage"),
   validate(updateShiftSchema),
   shiftController.updateShift,
+);
+router.delete(
+  "/:id",
+  verifyToken,
+  checkPermission("shifts", "manage"),
+  validate(shiftIdSchema),
+  shiftController.deleteShift,
 );
 
 module.exports = router;

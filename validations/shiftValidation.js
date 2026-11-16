@@ -13,8 +13,12 @@ const createShiftSchema = z.object({
   }),
 });
 
+const shiftIdParams = z.object({ id: z.coerce.number().int().positive() });
+
+const shiftIdSchema = z.object({ params: shiftIdParams });
+
 const updateShiftSchema = z.object({
-  params: z.object({ id: z.coerce.number().int().positive() }),
+  params: shiftIdParams,
   body: z.object({
     name: z.string().min(1).max(100).optional(),
     startTime: z.string().regex(TIME_REGEX).optional(),
@@ -24,4 +28,4 @@ const updateShiftSchema = z.object({
   }),
 });
 
-module.exports = { createShiftSchema, updateShiftSchema, WEEKDAYS };
+module.exports = { createShiftSchema, updateShiftSchema, shiftIdSchema, WEEKDAYS };

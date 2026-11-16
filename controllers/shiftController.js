@@ -1,7 +1,7 @@
 const db = require("../models");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
-const { sendSuccess } = require("../utils/apiResponse");
+const { sendSuccess, sendDeleted } = require("../utils/apiResponse");
 
 const createShift = catchAsync(async (req, res) => {
   const shift = await db.Shift.create(req.body);
@@ -13,21 +13,48 @@ const listShifts = catchAsync(async (req, res) => {
   return sendSuccess(res, 200, shifts);
 });
 
-const getShift = catchAsync(async (req, res) => {
-  const shift = await db.Shift.findByPk(req.params.id);
+const findShift = async (id) => {
+  const shift = await db.Shift.findByPk(id);
   if (!shift) {
     throw new AppError("Shift not found", 404, "NOT_FOUND");
   }
+  return shift;
+};
+
+const getShift = catchAsync(async (req, res) => {
+  const shift = await findShift(req.params.id);
   return sendSuccess(res, 200, shift);
 });
 
 const updateShift = catchAsync(async (req, res) => {
-  const shift = await db.Shift.findByPk(req.params.id);
-  if (!shift) {
-    throw new AppError("Shift not found", 404, "NOT_FOUND");
-  }
+  const shift = await findShift(req.params.id);
   await shift.update(req.body);
   return sendSuccess(res, 200, shift);
 });
 
-module.exports = { createShift, listShifts, getShift, updateShift };
+const deleteShift = catchAsync(async (req, res) => {
+  const shift = await findShift(req.params.id);
+
+  await db.sequelize.transaction(async (t) => {
+    const count = await db.Employee.count({ where: { shiftId: shift.id }, transaction: t });
+    if (count > 0) {
+      throw new AppError(
+        `This shift is assigned to ${count} employee(s). Reassign them first.`,
+        409,
+        "SHIFT_HAS_EMPLOYEES",
+        { count },
+      );
+    }
+
+    // Only soft-deleted employees can still point at it now.
+    await db.Employee.update(
+      { shiftId: null },
+      { where: { shiftId: shift.id }, paranoid: false, transaction: t },
+    );
+    await shift.destroy({ transaction: t });
+  });
+
+  return sendDeleted(res, shift.id, "Shift deleted");
+});
+
+module.exports = { createShift, listShifts, getShift, updateShift, deleteShift };
