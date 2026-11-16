@@ -48,9 +48,18 @@ const Employee = sequelize.define(
       allowNull: true,
     },
     employmentType: {
-      type: DataTypes.ENUM("Full-time", "Part-time", "Contract", "Intern", "Probation"),
+      type: DataTypes.ENUM("Full-time", "Part-time", "Contract", "Intern"),
       allowNull: false,
       defaultValue: "Full-time",
+    },
+    employmentStatus: {
+      type: DataTypes.ENUM("Active", "Probation", "Suspended", "Resigned", "Terminated"),
+      allowNull: false,
+      defaultValue: "Active",
+    },
+    terminationDate: {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
     },
     shiftId: {
       type: DataTypes.INTEGER.UNSIGNED,

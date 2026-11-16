@@ -11,6 +11,14 @@ const isValueTaken = require("../utils/isValueTaken");
 const { sendUpload } = require("../utils/uploads");
 const { getRequesterEmployee } = require("../services/requesterService");
 const { assertCanAssignRole, assertOutranks } = require("../services/roleRankService");
+const {
+  blocksAccess,
+  resolveStatusFields,
+  syncUserAccess,
+  statusFilter,
+} = require("../services/employmentStatusService");
+
+const NEW_EMPLOYEE_STATUS = { employmentStatus: "Active", terminationDate: null, dateOfJoining: null };
 
 const DETAIL_INCLUDES = [
   "department",
@@ -111,16 +119,18 @@ const createEmployee = catchAsync(async (req, res) => {
 
   await assertReferencesExist(basicAndEmployment);
 
+  const status = resolveStatusFields(NEW_EMPLOYEE_STATUS, basicAndEmployment);
+
   const passwordHash = await hashPassword(initialPassword);
 
   const { employee, user } = await db.sequelize.transaction(async (t) => {
     const createdUser = await db.User.create(
-      { email, passwordHash, roleId, isActive: true },
+      { email, passwordHash, roleId, isActive: !blocksAccess(status) },
       { transaction: t },
     );
 
     const createdEmployee = await db.Employee.create(
-      { ...basicAndEmployment, employeeCode, userId: createdUser.id },
+      { ...basicAndEmployment, ...status, employeeCode, userId: createdUser.id },
       { transaction: t },
     );
 
@@ -143,7 +153,7 @@ const createEmployee = catchAsync(async (req, res) => {
 const listEmployees = catchAsync(async (req, res) => {
   const { page, limit, offset } = parsePagination(req.query);
 
-  const where = {};
+  const where = statusFilter(req.query.employmentStatus, Op);
   if (req.query.departmentId !== undefined) {
     where.departmentId = req.query.departmentId;
   }
@@ -186,7 +196,7 @@ const getTeam = catchAsync(async (req, res) => {
   const requester = await getRequesterEmployee(req);
 
   const reports = await db.Employee.findAll({
-    where: { managerId: requester.id },
+    where: { managerId: requester.id, ...statusFilter(undefined, Op) },
     include: ["department"],
   });
 
@@ -262,6 +272,21 @@ const updateEmployee = catchAsync(async (req, res) => {
   await assertReferencesExist(employeeFields);
   await assertValidManager(employee.id, employeeFields.managerId);
 
+  const status = resolveStatusFields(employee, employeeFields);
+  const statusChanged =
+    status.employmentStatus !== employee.employmentStatus ||
+    status.terminationDate !== employee.terminationDate;
+  const wasBlocked = blocksAccess(employee);
+  if (statusChanged) {
+    if (req.user.id === employee.userId) {
+      if (blocksAccess(status)) {
+        throw new AppError("You cannot end your own access by changing your status", 400, "CANNOT_CHANGE_OWN_STATUS");
+      }
+    } else if (!roleChanged) {
+      await assertOutranks(req, employee.user.roleId);
+    }
+  }
+
   await db.sequelize.transaction(async (t) => {
     if (email) {
       await employee.user.update({ email }, { transaction: t });
@@ -271,7 +296,11 @@ const updateEmployee = catchAsync(async (req, res) => {
       await employee.user.update({ roleId }, { transaction: t });
     }
 
-    await employee.update(employeeFields, { transaction: t });
+    await employee.update({ ...employeeFields, ...status }, { transaction: t });
+
+    if (statusChanged) {
+      await syncUserAccess(employee, employee.user, { wasBlocked }, t);
+    }
 
     if (contact) {
       const [row, created] = await db.EmployeeContact.findOrCreate({

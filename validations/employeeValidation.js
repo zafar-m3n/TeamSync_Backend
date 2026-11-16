@@ -1,5 +1,7 @@
 const { z } = require("zod");
 const { passwordSchema } = require("./userValidation");
+const { ymdSchema } = require("./dateValidation");
+const { EMPLOYMENT_STATUSES } = require("../services/employmentStatusService");
 
 const contactSchema = z.object({
   addressLine1: z.string().max(150).optional(),
@@ -23,7 +25,7 @@ const bankingSchema = z.object({
 const withNullableFields = (schema) =>
   z.object(Object.fromEntries(Object.entries(schema.shape).map(([key, field]) => [key, field.nullable()])));
 
-const EMPLOYMENT_TYPES = ["Full-time", "Part-time", "Contract", "Intern", "Probation"];
+const EMPLOYMENT_TYPES = ["Full-time", "Part-time", "Contract", "Intern"];
 
 const createEmployeeSchema = z.object({
   body: z.object({
@@ -42,6 +44,8 @@ const createEmployeeSchema = z.object({
     designation: z.string().max(100).optional(),
     dateOfJoining: z.string().optional(), // 'YYYY-MM-DD'
     employmentType: z.enum(EMPLOYMENT_TYPES).optional(),
+    employmentStatus: z.enum(EMPLOYMENT_STATUSES).optional(),
+    terminationDate: ymdSchema.nullable().optional(),
     shiftId: z.number().int().positive().optional().nullable(),
     managerId: z.number().int().positive().optional().nullable(),
     // Contact Information (optional at creation)
@@ -65,6 +69,8 @@ const updateEmployeeSchema = z.object({
     designation: z.string().max(100).nullable().optional(),
     dateOfJoining: z.string().nullable().optional(),
     employmentType: z.enum(EMPLOYMENT_TYPES).optional(),
+    employmentStatus: z.enum(EMPLOYMENT_STATUSES).optional(),
+    terminationDate: ymdSchema.nullable().optional(),
     shiftId: z.number().int().positive().nullable().optional(),
     managerId: z.number().int().positive().nullable().optional(),
     contact: withNullableFields(contactSchema).optional(),

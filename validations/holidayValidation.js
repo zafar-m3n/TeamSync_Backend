@@ -1,10 +1,5 @@
 const { z } = require("zod");
-const dayjs = require("dayjs");
-
-const ymd = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD")
-  .refine((v) => dayjs(v).format("YYYY-MM-DD") === v, "Not a real date");
+const { ymdSchema: ymd } = require("./dateValidation");
 
 const idParams = z.object({ id: z.coerce.number().int().positive() });
 

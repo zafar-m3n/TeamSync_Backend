@@ -6,6 +6,7 @@ const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const { assertOutranks } = require("../services/roleRankService");
 const { hashPassword } = require("../utils/password");
 const { setPasswordAndRevoke } = require("../services/sessionService");
+const { blocksAccess } = require("../services/employmentStatusService");
 
 const resetPassword = catchAsync(async (req, res) => {
   const { id } = req.params;
@@ -74,6 +75,17 @@ const updateStatus = catchAsync(async (req, res) => {
   }
 
   await assertOutranks(req, user.roleId);
+
+  if (isActive) {
+    const employee = await db.Employee.findOne({ where: { userId: user.id } });
+    if (employee && blocksAccess(employee)) {
+      throw new AppError(
+        `Cannot activate this account while the employee is ${employee.employmentStatus}`,
+        409,
+        "EMPLOYEE_NOT_ACTIVE",
+      );
+    }
+  }
 
   user.isActive = isActive;
   await user.save();
