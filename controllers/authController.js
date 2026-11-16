@@ -5,6 +5,7 @@ const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/apiResponse");
 const { nowTz } = require("../utils/time");
+const { buildSessionUser } = require("../services/sessionService");
 
 const login = catchAsync(async (req, res) => {
   const { email, password } = req.body;
@@ -64,15 +65,12 @@ const login = catchAsync(async (req, res) => {
     { expiresIn: process.env.NODE_TEAMSYNC_JWT_EXPIRES_IN },
   );
 
-  return sendSuccess(res, 200, {
-    token,
-    user: {
-      id: user.id,
-      email: user.email,
-      roleId: user.roleId,
-      roleName: user.role.name,
-    },
-  });
+  return sendSuccess(res, 200, { token, user: await buildSessionUser(user) });
 });
 
-module.exports = { login };
+const me = catchAsync(async (req, res) => {
+  const user = await db.User.findByPk(req.user.id, { include: [{ model: db.Role, as: "role" }] });
+  return sendSuccess(res, 200, await buildSessionUser(user));
+});
+
+module.exports = { login, me };
