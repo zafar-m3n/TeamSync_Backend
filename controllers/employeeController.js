@@ -58,6 +58,27 @@ const assertReferencesExist = async ({ departmentId, shiftId, managerId }) => {
   }
 };
 
+// Walks up from the proposed manager; reaching the employee means the change would form a loop.
+const assertValidManager = async (employeeId, managerId) => {
+  if (managerId == null) {
+    return;
+  }
+  if (managerId === employeeId) {
+    throw new AppError("An employee cannot be their own manager", 400, "INVALID_MANAGER");
+  }
+
+  const visited = new Set();
+  let currentId = managerId;
+  while (currentId != null && !visited.has(currentId)) {
+    if (currentId === employeeId) {
+      throw new AppError("This manager change would create a reporting loop", 400, "MANAGER_LOOP");
+    }
+    visited.add(currentId);
+    const current = await db.Employee.findByPk(currentId, { attributes: ["id", "managerId"] });
+    currentId = current ? current.managerId : null;
+  }
+};
+
 const createEmployee = catchAsync(async (req, res) => {
   const {
     email,
@@ -239,6 +260,7 @@ const updateEmployee = catchAsync(async (req, res) => {
   }
 
   await assertReferencesExist(employeeFields);
+  await assertValidManager(employee.id, employeeFields.managerId);
 
   await db.sequelize.transaction(async (t) => {
     if (email) {
