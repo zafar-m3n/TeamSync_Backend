@@ -10,8 +10,12 @@ const createGoalSchema = z.object({
   }),
 });
 
+const goalIdParams = z.object({ id: z.coerce.number().int().positive() });
+
+const goalIdSchema = z.object({ params: goalIdParams });
+
 const updateGoalSchema = z.object({
-  params: z.object({ id: z.coerce.number().int().positive() }),
+  params: goalIdParams,
   body: z.object({
     title: z.string().min(1).max(150).optional(),
     description: z.string().optional(),
@@ -21,10 +25,10 @@ const updateGoalSchema = z.object({
 });
 
 const recordActualSchema = z.object({
-  params: z.object({ id: z.coerce.number().int().positive() }),
+  params: goalIdParams,
   body: z.object({
     actualValue: z.number().min(0),
   }),
 });
 
-module.exports = { createGoalSchema, updateGoalSchema, recordActualSchema };
+module.exports = { createGoalSchema, updateGoalSchema, recordActualSchema, goalIdSchema };

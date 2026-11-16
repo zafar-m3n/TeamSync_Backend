@@ -4,7 +4,7 @@ const db = require("../models");
 const { Op } = db.Sequelize;
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
-const { sendSuccess } = require("../utils/apiResponse");
+const { sendSuccess, sendDeleted } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
 const { getRequesterEmployee } = require("../services/requesterService");
@@ -164,6 +164,23 @@ const recordActual = catchAsync(async (req, res) => {
   return sendSuccess(res, 200, goal);
 });
 
+// Goals are hard-deleted; nothing references them (the actual lives on the row).
+const deleteGoal = catchAsync(async (req, res) => {
+  const goal = await db.Goal.findByPk(req.params.id);
+  if (!goal) {
+    throw new AppError("Goal not found", 404, "NOT_FOUND");
+  }
+
+  // managerId is the setting manager's user id, not an employee id.
+  const canDeleteAny = await hasPermission(req.user.roleId, "goals", "view_all");
+  if (!canDeleteAny && goal.managerId !== req.user.id) {
+    throw new AppError("You can only delete goals you set", 403, "NOT_GOAL_OWNER");
+  }
+
+  await goal.destroy();
+  return sendDeleted(res, goal.id, "Goal deleted");
+});
+
 module.exports = {
   createGoal,
   getMyGoals,
@@ -172,4 +189,5 @@ module.exports = {
   getGoalById,
   updateGoal,
   recordActual,
+  deleteGoal,
 };

@@ -37,6 +37,7 @@ const PERMISSION_MATRIX = [
   { module: "goals", action: "create", roles: ["Manager"] },
   { module: "goals", action: "edit", roles: ["Manager"] },
   { module: "goals", action: "record_actual", roles: ["Manager"] },
+  { module: "goals", action: "delete", roles: ["Manager", "HR", "Admin"] },
   { module: "goals", action: "view_own", roles: ["Admin", "HR", "Manager", "Employee"] },
   { module: "goals", action: "view_team", roles: ["Manager"] },
   { module: "goals", action: "view_all", roles: ["HR", "Admin"] },

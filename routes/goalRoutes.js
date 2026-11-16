@@ -5,7 +5,7 @@ const goalController = require("../controllers/goalController");
 const { verifyToken } = require("../middleware/auth");
 const { checkPermission } = require("../middleware/permission");
 const validate = require("../middleware/validate");
-const { createGoalSchema, updateGoalSchema, recordActualSchema } = require("../validations/goalValidation");
+const { createGoalSchema, updateGoalSchema, recordActualSchema, goalIdSchema } = require("../validations/goalValidation");
 
 router.post("/", verifyToken, checkPermission("goals", "create"), validate(createGoalSchema), goalController.createGoal);
 router.get("/me", verifyToken, checkPermission("goals", "view_own"), goalController.getMyGoals);
@@ -23,5 +23,6 @@ router.patch(
   validate(recordActualSchema),
   goalController.recordActual,
 );
+router.delete("/:id", verifyToken, checkPermission("goals", "delete"), validate(goalIdSchema), goalController.deleteGoal);
 
 module.exports = router;
