@@ -5,6 +5,7 @@ const { sendSuccess } = require("../utils/apiResponse");
 const hasPermission = require("../utils/hasPermission");
 const { getRequesterEmployee } = require("../services/requesterService");
 const { nowTz } = require("../utils/time");
+const { listBalances, balanceEntry } = require("../services/leaveBalanceService");
 
 const currentYear = () => nowTz().year();
 
@@ -13,18 +14,8 @@ const resolveYear = (query) => {
   return Number.isNaN(parsed) ? currentYear() : parsed;
 };
 
-const loadBalancePayload = async (employeeId, year) => {
-  const balance = await db.LeaveBalance.findOne({ where: { employeeId, year } });
-  if (!balance) {
-    return { employeeId, year, totalDays: 0, usedDays: 0, remaining: 0 };
-  }
-  const plain = balance.toJSON();
-  const remaining = parseFloat(plain.totalDays) - parseFloat(plain.usedDays);
-  return { ...plain, remaining };
-};
-
 const setLeaveBalance = catchAsync(async (req, res) => {
-  const { employeeId, year } = req.params;
+  const { employeeId, year, leaveTypeId } = req.params;
   const { totalDays } = req.body;
 
   const employee = await db.Employee.findByPk(employeeId);
@@ -32,8 +23,13 @@ const setLeaveBalance = catchAsync(async (req, res) => {
     throw new AppError("Employee not found", 404, "NOT_FOUND");
   }
 
+  const leaveType = await db.LeaveType.findByPk(leaveTypeId);
+  if (!leaveType) {
+    throw new AppError("Leave type not found", 404, "LEAVE_TYPE_NOT_FOUND");
+  }
+
   const [balance, created] = await db.LeaveBalance.findOrCreate({
-    where: { employeeId, year },
+    where: { employeeId, leaveTypeId, year },
     defaults: { totalDays, usedDays: 0 },
   });
 
@@ -41,14 +37,14 @@ const setLeaveBalance = catchAsync(async (req, res) => {
     await balance.update({ totalDays });
   }
 
-  return sendSuccess(res, 200, balance);
+  return sendSuccess(res, 200, balanceEntry(balance, leaveType));
 });
 
 const getMyLeaveBalance = catchAsync(async (req, res) => {
   const requester = await getRequesterEmployee(req);
 
   const year = resolveYear(req.query);
-  const payload = await loadBalancePayload(requester.id, year);
+  const payload = await listBalances(requester.id, year);
   return sendSuccess(res, 200, payload);
 });
 
@@ -62,19 +58,19 @@ const getEmployeeLeaveBalance = catchAsync(async (req, res) => {
 
   const canViewAll = await hasPermission(req.user.roleId, "leave", "view_all");
   if (canViewAll) {
-    return sendSuccess(res, 200, await loadBalancePayload(target.id, year));
+    return sendSuccess(res, 200, await listBalances(target.id, year));
   }
 
   const requester = await getRequesterEmployee(req, { required: false });
 
   const canViewTeam = await hasPermission(req.user.roleId, "leave", "view_team");
   if (canViewTeam && requester && target.managerId === requester.id) {
-    return sendSuccess(res, 200, await loadBalancePayload(target.id, year));
+    return sendSuccess(res, 200, await listBalances(target.id, year));
   }
 
   const canViewOwn = await hasPermission(req.user.roleId, "leave", "view_own");
   if (canViewOwn && requester && target.id === requester.id) {
-    return sendSuccess(res, 200, await loadBalancePayload(target.id, year));
+    return sendSuccess(res, 200, await listBalances(target.id, year));
   }
 
   throw new AppError("You do not have permission to view this leave balance", 403, "FORBIDDEN");

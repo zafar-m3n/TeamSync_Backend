@@ -9,6 +9,7 @@ const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
 const { markHalfDay } = require("../services/attendanceService");
 const { getRequesterEmployee } = require("../services/requesterService");
+const { lockBalance } = require("../services/leaveBalanceService");
 const { buildDateFilter } = require("../utils/queryHelpers");
 
 const computeDays = (startDate, endDate, isHalfDay) => {
@@ -144,16 +145,11 @@ const lockRequest = async (id, transaction, expectedStatus, error) => {
   return locked;
 };
 
-const lockBalance = async (employeeId, year, transaction, { create = false } = {}) => {
-  if (create) {
-    await db.LeaveBalance.findOrCreate({
-      where: { employeeId, year },
-      defaults: { totalDays: 0, usedDays: 0 },
-      transaction,
-    });
-  }
-  return db.LeaveBalance.findOne({ where: { employeeId, year }, transaction, lock: transaction.LOCK.UPDATE });
-};
+const balanceKey = (request) => ({
+  employeeId: request.employeeId,
+  leaveTypeId: request.leaveTypeId,
+  year: dayjs(request.startDate).year(),
+});
 
 const approveLeaveRequest = catchAsync(async (req, res) => {
   const request = await db.LeaveRequest.findByPk(req.params.id, { include: "employee" });
@@ -172,9 +168,7 @@ const approveLeaveRequest = catchAsync(async (req, res) => {
     );
 
     const daysRequested = computeDays(locked.startDate, locked.endDate, locked.isHalfDay);
-    const balance = await lockBalance(locked.employeeId, dayjs(locked.startDate).year(), t, {
-      create: true,
-    });
+    const balance = await lockBalance(balanceKey(locked), t, { create: true });
 
     const remaining = parseFloat(balance.totalDays) - parseFloat(balance.usedDays);
     if (daysRequested > remaining) {
@@ -279,7 +273,7 @@ const cancelLeaveRequest = catchAsync(async (req, res) => {
       );
 
       const daysRequested = computeDays(locked.startDate, locked.endDate, locked.isHalfDay);
-      const balance = await lockBalance(locked.employeeId, dayjs(locked.startDate).year(), t);
+      const balance = await lockBalance(balanceKey(locked), t);
 
       if (balance) {
         const refunded = Math.max(0, parseFloat(balance.usedDays) - daysRequested);

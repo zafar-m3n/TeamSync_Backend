@@ -9,7 +9,7 @@ const { setLeaveBalanceSchema } = require("../validations/leaveBalanceValidation
 
 router.get("/me", verifyToken, checkPermission("leave", "view_own"), leaveBalanceController.getMyLeaveBalance);
 router.put(
-  "/:employeeId/:year",
+  "/:employeeId/:year/:leaveTypeId",
   verifyToken,
   checkPermission("leave", "set_quota"),
   validate(setLeaveBalanceSchema),

@@ -4,6 +4,7 @@ const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/apiResponse");
 const hasPermission = require("../utils/hasPermission");
 const { getRequesterEmployee } = require("../services/requesterService");
+const { listBalances } = require("../services/leaveBalanceService");
 const { nowTz, todayTz } = require("../utils/time");
 const { assignmentScopeOr } = require("../utils/queryHelpers");
 
@@ -25,16 +26,17 @@ const attendanceRate = async (startDate, endDate) => {
   return Math.round((attendedRecords / totalRecords) * 10000) / 100;
 };
 
+// Dashboard summary: all leave types added together for the current year.
 const buildLeaveBalance = async (employeeId) => {
-  const balance = await db.LeaveBalance.findOne({ where: { employeeId, year: currentYear() } });
-  if (!balance) {
-    return { totalDays: 0, usedDays: 0, remaining: 0 };
-  }
-  return {
-    totalDays: balance.totalDays,
-    usedDays: balance.usedDays,
-    remaining: parseFloat(balance.totalDays) - parseFloat(balance.usedDays),
-  };
+  const entries = await listBalances(employeeId, currentYear());
+  return entries.reduce(
+    (sum, e) => ({
+      totalDays: sum.totalDays + e.totalDays,
+      usedDays: sum.usedDays + e.usedDays,
+      remaining: sum.remaining + e.remaining,
+    }),
+    { totalDays: 0, usedDays: 0, remaining: 0 },
+  );
 };
 
 const buildAssignedTraining = async (employee) => {

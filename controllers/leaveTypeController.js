@@ -59,6 +59,15 @@ const deleteLeaveType = catchAsync(async (req, res) => {
     );
   }
 
+  const balances = await db.LeaveBalance.count({ where: { leaveTypeId: leaveType.id } });
+  if (balances > 0) {
+    throw new AppError(
+      "Cannot delete a leave type that has leave balances",
+      409,
+      "LEAVE_TYPE_HAS_BALANCES",
+    );
+  }
+
   await leaveType.destroy();
   return sendDeleted(res, leaveType.id, "Leave type deleted");
 });

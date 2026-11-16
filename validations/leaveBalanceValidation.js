@@ -4,6 +4,7 @@ const setLeaveBalanceSchema = z.object({
   params: z.object({
     employeeId: z.coerce.number().int().positive(),
     year: z.coerce.number().int().min(2000).max(2100),
+    leaveTypeId: z.coerce.number().int().positive(),
   }),
   body: z.object({
     totalDays: z.number().min(0),
