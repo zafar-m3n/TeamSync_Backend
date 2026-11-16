@@ -1,5 +1,6 @@
 const { z } = require("zod");
 const { ymdSchema } = require("./dateValidation");
+const { pageFields, dateRangeFields, startBeforeEnd } = require("./queryValidation");
 
 const withRangeRules = (schema) =>
   schema
@@ -36,4 +37,14 @@ const previewLeaveDaysSchema = z.object({
   ),
 });
 
-module.exports = { createLeaveRequestSchema, previewLeaveDaysSchema };
+const teamLeaveQuerySchema = z.object({
+  query: z
+    .object({
+      ...pageFields,
+      ...dateRangeFields,
+      status: z.enum(["Pending", "Approved", "Rejected", "Cancelled"]).optional(),
+    })
+    .refine(...startBeforeEnd),
+});
+
+module.exports = { createLeaveRequestSchema, previewLeaveDaysSchema, teamLeaveQuerySchema };

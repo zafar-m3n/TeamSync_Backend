@@ -55,14 +55,26 @@ const getTeamAttendance = catchAsync(async (req, res) => {
   });
   const reportIds = reports.map((r) => r.id);
 
-  const date = req.query.date || todayTz();
+  const query = req.validatedQuery;
+  const { page, limit, offset } = parsePagination(query);
+  const where = {
+    employeeId: { [Op.in]: reportIds },
+    date: buildDateFilter(query) ?? query.date ?? todayTz(),
+  };
+  if (query.status !== undefined) {
+    where.status = query.status;
+  }
 
-  const records = await db.AttendanceRecord.findAll({
-    where: { employeeId: { [Op.in]: reportIds }, date },
+  const { rows, count } = await db.AttendanceRecord.findAndCountAll({
+    where,
     include: "employee",
+    order: [["date", "DESC"], ["id", "ASC"]],
+    limit,
+    offset,
+    distinct: true,
   });
 
-  return sendSuccess(res, 200, records);
+  return sendSuccess(res, 200, rows, buildPaginationMeta(page, limit, count));
 });
 
 const listAllAttendance = catchAsync(async (req, res) => {

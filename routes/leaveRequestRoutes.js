@@ -5,7 +5,11 @@ const leaveRequestController = require("../controllers/leaveRequestController");
 const { verifyToken } = require("../middleware/auth");
 const { checkPermission } = require("../middleware/permission");
 const validate = require("../middleware/validate");
-const { createLeaveRequestSchema, previewLeaveDaysSchema } = require("../validations/leaveRequestValidation");
+const {
+  createLeaveRequestSchema,
+  previewLeaveDaysSchema,
+  teamLeaveQuerySchema,
+} = require("../validations/leaveRequestValidation");
 
 router.post(
   "/",
@@ -22,7 +26,13 @@ router.get(
   leaveRequestController.previewLeaveDays,
 );
 router.get("/me", verifyToken, checkPermission("leave", "view_own"), leaveRequestController.getMyLeaveRequests);
-router.get("/team", verifyToken, checkPermission("leave", "view_team"), leaveRequestController.getTeamLeaveRequests);
+router.get(
+  "/team",
+  verifyToken,
+  checkPermission("leave", "view_team"),
+  validate(teamLeaveQuerySchema),
+  leaveRequestController.getTeamLeaveRequests,
+);
 router.get("/", verifyToken, checkPermission("leave", "view_all"), leaveRequestController.listAllLeaveRequests);
 
 // No checkPermission on these three — mixed-scope, authorized inside the controllers.

@@ -117,18 +117,27 @@ const getTeamLeaveRequests = catchAsync(async (req, res) => {
   });
   const reportIds = reports.map((r) => r.id);
 
+  const query = req.validatedQuery;
+  const { page, limit, offset } = parsePagination(query);
   const where = { employeeId: { [Op.in]: reportIds } };
-  if (req.query.status !== undefined) {
-    where.status = req.query.status;
+  if (query.status !== undefined) {
+    where.status = query.status;
+  }
+  const dateFilter = buildDateFilter(query);
+  if (dateFilter) {
+    where.startDate = dateFilter;
   }
 
-  const records = await db.LeaveRequest.findAll({
+  const { rows, count } = await db.LeaveRequest.findAndCountAll({
     where,
     include: ["employee", "leaveType"],
     order: [["createdAt", "DESC"]],
+    limit,
+    offset,
+    distinct: true,
   });
 
-  return sendSuccess(res, 200, await withLeaveDays(records));
+  return sendSuccess(res, 200, await withLeaveDays(rows), buildPaginationMeta(page, limit, count));
 });
 
 const listAllLeaveRequests = catchAsync(async (req, res) => {
