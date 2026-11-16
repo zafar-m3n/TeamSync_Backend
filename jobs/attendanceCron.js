@@ -1,11 +1,15 @@
 const cron = require("node-cron");
 const logger = require("../utils/logger");
 const { dayjs, TZ, nowTz } = require("../utils/time");
-const { applyDueTerminations } = require("../services/employmentStatusService");
+const { applyDueTerminations, LEAVING_STATUSES } = require("../services/employmentStatusService");
 const { shiftWindow } = require("../services/attendanceService");
 const { isWorkingDay } = require("../services/workingDayService");
 
 const WORKING_STATUSES = ["Active", "Probation"];
+// Leavers still serving notice work until their termination date (the first day
+// without access, as in blocksAccess), so their absences count until then.
+const onNotice = (employee, day) =>
+  LEAVING_STATUSES.includes(employee.employmentStatus) && employee.terminationDate > day;
 // Overnight shifts end the next calendar day, so each run settles the last two shift
 // days; an employee is only handled once their shift on that day has ended.
 const DAYS_BACK = [2, 1];
@@ -20,10 +24,20 @@ const settleShiftDays = async (now) => {
     db.Employee.findAll({
       where: {
         shiftId: { [Op.ne]: null },
-        employmentStatus: { [Op.in]: WORKING_STATUSES },
-        [Op.or]: [{ dateOfJoining: null }, { dateOfJoining: { [Op.lte]: last } }],
+        [Op.and]: [
+          { [Op.or]: [{ dateOfJoining: null }, { dateOfJoining: { [Op.lte]: last } }] },
+          {
+            [Op.or]: [
+              { employmentStatus: { [Op.in]: WORKING_STATUSES } },
+              {
+                employmentStatus: { [Op.in]: LEAVING_STATUSES },
+                terminationDate: { [Op.gt]: first },
+              },
+            ],
+          },
+        ],
       },
-      attributes: ["id", "dateOfJoining"],
+      attributes: ["id", "dateOfJoining", "employmentStatus", "terminationDate"],
       include: { association: "shift", attributes: ["startTime", "endTime", "workingDays"] },
     }),
     db.AttendanceRecord.findAll({
@@ -53,6 +67,7 @@ const settleShiftDays = async (now) => {
   for (const day of days) {
     for (const employee of employees) {
       if (employee.dateOfJoining && employee.dateOfJoining > day) continue;
+      if (!WORKING_STATUSES.includes(employee.employmentStatus) && !onNotice(employee, day)) continue;
       const { end } = shiftWindow(employee.shift, day);
       if (end.isAfter(now)) continue; // still running; next run settles it
 
@@ -80,8 +95,8 @@ const settleShiftDays = async (now) => {
   return { days, absent: absent.length, clockedOut: [...clockOuts.values()].flat().length };
 };
 
-// Nightly: apply due terminations first (so leavers aren't marked Absent), then
-// mark Absent and auto clock-out for shifts that have ended.
+// Nightly: apply due terminations first, then mark Absent and auto clock-out for
+// shifts that have ended (leavers only up to their termination date).
 const runDailyAttendanceJob = async ({ now = nowTz() } = {}) => {
   try {
     const deactivated = await applyDueTerminations();
