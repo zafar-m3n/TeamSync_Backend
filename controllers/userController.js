@@ -7,6 +7,7 @@ const { assertOutranks } = require("../services/roleRankService");
 const { hashPassword } = require("../utils/password");
 const { setPasswordAndRevoke } = require("../services/sessionService");
 const { blocksAccess } = require("../services/employmentStatusService");
+const { afterResponse, notifyPasswordReset } = require("../services/notificationService");
 
 const resetPassword = catchAsync(async (req, res) => {
   const { id } = req.params;
@@ -22,6 +23,7 @@ const resetPassword = catchAsync(async (req, res) => {
 
   await setPasswordAndRevoke(user, await hashPassword(newPassword));
 
+  afterResponse(res, () => notifyPasswordReset(user.id));
   return sendAction(res, "Password reset successfully");
 });
 

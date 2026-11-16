@@ -152,6 +152,28 @@ const notifyLeaveDecision = async (requestId) => {
   );
 };
 
+// An administrator reset this user's password. Never includes the password itself.
+const notifyPasswordReset = async (userId) => {
+  const db = require("../models");
+  const user = await db.User.findByPk(userId, {
+    attributes: ["email"],
+    include: { association: "employee", attributes: ["fullName"] },
+  });
+  if (!user) {
+    return;
+  }
+  await sendToEach([recipientOf(user, user.employee?.fullName)], "Your TeamSync password was reset", (r) =>
+    compose({
+      greeting: `Hi ${r.name ?? "there"},`,
+      lines: [
+        "An administrator has reset your TeamSync password, and you have been signed out everywhere.",
+        "Ask them for your new password. If you did not expect this, contact HR.",
+      ],
+      link: { label: "Sign in to TeamSync", url: appLink("/login") },
+    }),
+  );
+};
+
 module.exports = {
   afterResponse,
   compose,
@@ -161,4 +183,5 @@ module.exports = {
   appLink,
   notifyLeaveSubmitted,
   notifyLeaveDecision,
+  notifyPasswordReset,
 };
