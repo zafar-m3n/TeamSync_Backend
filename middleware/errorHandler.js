@@ -31,6 +31,9 @@ const errorHandler = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     const [message, code] = MULTER_ERRORS[err.code] || [err.message, "UPLOAD_ERROR"];
     error = new AppError(message, 400, code);
+  } else if (err.type === "entity.parse.failed") {
+    // express.json() could not parse the request body.
+    error = new AppError("Request body is not valid JSON", 400, "INVALID_JSON");
   } else if (err.name === "SequelizeUniqueConstraintError") {
     error = new AppError(
       "That value belongs to an existing or deleted record",
