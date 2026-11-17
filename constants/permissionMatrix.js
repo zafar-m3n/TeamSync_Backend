@@ -1,5 +1,5 @@
 const PERMISSION_MATRIX = [
-  // Employee Records (Phase 6)
+  // Employee Records
   { module: "employees", action: "create", roles: ["HR", "Admin"] },
   { module: "employees", action: "edit", roles: ["HR", "Admin"] },
   { module: "employees", action: "delete", roles: ["HR", "Admin"] },
@@ -7,7 +7,7 @@ const PERMISSION_MATRIX = [
   { module: "employees", action: "view_team", roles: ["Manager"] },
   { module: "employees", action: "view_all", roles: ["HR", "Admin"] },
 
-  // Attendance & Shifts (Phase 7)
+  // Attendance & Shifts
   { module: "shifts", action: "manage", roles: ["HR", "Admin"] },
   { module: "shifts", action: "assign", roles: ["HR", "Admin"] },
   { module: "attendance", action: "edit", roles: ["HR", "Admin"] },
@@ -17,7 +17,7 @@ const PERMISSION_MATRIX = [
   { module: "attendance", action: "view_team", roles: ["Manager"] },
   { module: "attendance", action: "view_all", roles: ["HR", "Admin"] },
 
-  // Leave Management (Phase 8)
+  // Leave Management
   { module: "leave_types", action: "manage", roles: ["HR", "Admin"] },
   { module: "leave_types", action: "view", roles: ["Admin", "HR", "Manager", "Employee"] },
   { module: "leave", action: "set_quota", roles: ["HR", "Admin"] },
@@ -33,7 +33,7 @@ const PERMISSION_MATRIX = [
   { module: "holidays", action: "manage", roles: ["HR", "Admin"] },
   { module: "holidays", action: "view", roles: ["Admin", "HR", "Manager", "Employee"] },
 
-  // Performance Reviews (Phase 9)
+  // Performance Reviews
   { module: "goals", action: "create", roles: ["Manager"] },
   { module: "goals", action: "edit", roles: ["Manager"] },
   { module: "goals", action: "record_actual", roles: ["Manager"] },
@@ -42,7 +42,7 @@ const PERMISSION_MATRIX = [
   { module: "goals", action: "view_team", roles: ["Manager"] },
   { module: "goals", action: "view_all", roles: ["HR", "Admin"] },
 
-  // Training (Phase 10)
+  // Training
   { module: "training_categories", action: "manage", roles: ["HR", "Admin"] },
   { module: "training_categories", action: "view", roles: ["Admin", "HR", "Manager", "Employee"] },
   { module: "training", action: "upload", roles: ["Manager"] },
@@ -52,7 +52,7 @@ const PERMISSION_MATRIX = [
   { module: "training", action: "view_own_uploads", roles: ["Manager"] },
   { module: "training", action: "view_all", roles: ["HR", "Admin"] },
 
-  // Roles & Departments (Phases 3–4, already built and depending on these)
+  // Roles & Departments
   { module: "roles", action: "view", roles: ["HR", "Admin"] },
   { module: "roles", action: "manage", roles: ["Admin"] },
   { module: "departments", action: "create", roles: ["HR", "Admin"] },
@@ -63,7 +63,7 @@ const PERMISSION_MATRIX = [
   { module: "users", action: "reset_password", roles: ["HR", "Admin"] },
   { module: "users", action: "update_status", roles: ["HR", "Admin"] },
 
-  // Permissions (this phase)
+  // Permissions
   { module: "permissions", action: "view", roles: ["Admin"] },
   { module: "permissions", action: "manage", roles: ["Admin"] },
 ];

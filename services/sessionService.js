@@ -15,7 +15,6 @@ const buildSessionUser = async (user) => {
     email: user.email,
     roleId: user.roleId,
     roleName: user.role.name,
-    roleIsCustom: user.role.isCustom,
     roleRank: user.role.rank,
     outranksAll: outranksAll(user.role),
     employeeId: employee ? employee.id : null,

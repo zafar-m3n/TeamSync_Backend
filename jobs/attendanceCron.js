@@ -122,4 +122,4 @@ const scheduleAttendanceCron = () => {
   );
 };
 
-module.exports = { scheduleAttendanceCron, runDailyAttendanceJob };
+module.exports = { scheduleAttendanceCron };

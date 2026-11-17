@@ -55,4 +55,4 @@ const sendUpload = async (res, { filePath, originalName, mimeType }) => {
   });
 };
 
-module.exports = { UPLOADS_ROOT, resolveUploadPath, sendUpload };
+module.exports = { UPLOADS_ROOT, sendUpload };

@@ -74,12 +74,4 @@ const leaveDaysForMany = async (requests, { transaction } = {}) => {
   return result;
 };
 
-module.exports = {
-  DEFAULT_WORKING_DAYS,
-  leaveDaysForMany,
-  workingDaysOf,
-  isWorkingDay,
-  countWorkingDays,
-  loadHolidays,
-  leaveDaysFor,
-};
+module.exports = { leaveDaysForMany, isWorkingDay, leaveDaysFor };

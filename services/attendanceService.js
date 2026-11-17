@@ -127,10 +127,7 @@ const clockStatus = async (employeeId, now = nowTz()) => {
 };
 
 module.exports = {
-  isOvernight,
   shiftWindow,
-  currentShiftDay,
-  isLate,
   markHalfDay,
   clockIn,
   clockOut,

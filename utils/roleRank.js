@@ -8,4 +8,4 @@ const outranksAll = (role) => rankOf(role) === ROLE_RANK.Admin;
 
 const outranks = (role, targetRole) => outranksAll(role) || rankOf(role) > rankOf(targetRole);
 
-module.exports = { ROLE_RANK, rankOf, outranksAll, outranks };
+module.exports = { rankOf, outranksAll, outranks };

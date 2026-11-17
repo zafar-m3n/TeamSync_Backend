@@ -28,4 +28,4 @@ const updateShiftSchema = z.object({
   }),
 });
 
-module.exports = { createShiftSchema, updateShiftSchema, shiftIdSchema, WEEKDAYS };
+module.exports = { createShiftSchema, updateShiftSchema, shiftIdSchema };

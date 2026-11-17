@@ -176,11 +176,6 @@ const notifyPasswordReset = async (userId) => {
 
 module.exports = {
   afterResponse,
-  compose,
-  sendToEach,
-  recipientOf,
-  describeLeave,
-  appLink,
   notifyLeaveSubmitted,
   notifyLeaveDecision,
   notifyPasswordReset,
