@@ -7,6 +7,7 @@ const { getRequesterEmployee } = require("../services/requesterService");
 const { listBalances } = require("../services/leaveBalanceService");
 const { nowTz, todayTz } = require("../utils/time");
 const { assignmentScopeOr } = require("../utils/queryHelpers");
+const { currentRecord } = require("../services/attendanceService");
 
 const currentYear = () => nowTz().year();
 const monthRange = () => {
@@ -74,9 +75,7 @@ const employeeDashboard = async (req, res) => {
     });
   }
 
-  const attendance = await db.AttendanceRecord.findOne({
-    where: { employeeId: requester.id, date: todayTz() },
-  });
+  const attendance = await currentRecord(requester.id);
   const clockInStatus = attendance
     ? { hasClockedIn: true, status: attendance.status, clockIn: attendance.clockIn }
     : { hasClockedIn: false };

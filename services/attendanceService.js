@@ -126,10 +126,23 @@ const clockStatus = async (employeeId, now = nowTz()) => {
   };
 };
 
+// The record for the employee's current shift day (what ClockPanel shows). Without a
+// shift there is no shift day, so today's record by date (e.g. an HR override) is used.
+const currentRecord = async (employeeId, now = nowTz()) => {
+  try {
+    return (await loadClockState(employeeId, now)).record;
+  } catch (err) {
+    if (err.code !== "NO_SHIFT_ASSIGNED") throw err;
+    const db = require("../models");
+    return db.AttendanceRecord.findOne({ where: { employeeId, date: now.format("YYYY-MM-DD") } });
+  }
+};
+
 module.exports = {
   shiftWindow,
   markHalfDay,
   clockIn,
   clockOut,
   clockStatus,
+  currentRecord,
 };
