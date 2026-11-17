@@ -2,6 +2,7 @@ const db = require("../models");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
 const { sendSuccess, sendDeleted } = require("../utils/apiResponse");
+const { statusFilter } = require("../services/employmentStatusService");
 
 const createShift = catchAsync(async (req, res) => {
   const shift = await db.Shift.create(req.body);
@@ -36,7 +37,11 @@ const deleteShift = catchAsync(async (req, res) => {
   const shift = await findShift(req.params.id);
 
   await db.sequelize.transaction(async (t) => {
-    const count = await db.Employee.count({ where: { shiftId: shift.id }, transaction: t });
+    // Only current employees (incl. suspended or still serving notice) keep a shift in use.
+    const count = await db.Employee.count({
+      where: { shiftId: shift.id, ...statusFilter("current", db.Sequelize.Op) },
+      transaction: t,
+    });
     if (count > 0) {
       throw new AppError(
         `This shift is assigned to ${count} employee(s). Reassign them first.`,
@@ -46,7 +51,7 @@ const deleteShift = catchAsync(async (req, res) => {
       );
     }
 
-    // Only soft-deleted employees can still point at it now.
+    // Former and soft-deleted employees are all that can still point at it now.
     await db.Employee.update(
       { shiftId: null },
       { where: { shiftId: shift.id }, paranoid: false, transaction: t },
