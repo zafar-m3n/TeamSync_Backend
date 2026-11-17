@@ -2,6 +2,7 @@ const db = require("../models");
 const { Op } = db.Sequelize;
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
+const { withEmployeeName } = require("../utils/userInclude");
 const { sendSuccess, sendDeleted } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
@@ -102,7 +103,7 @@ const listAllAssignments = catchAsync(async (req, res) => {
 
   const { rows, count } = await db.TrainingAssignment.findAndCountAll({
     where,
-    include: ["document", "employee", "department"],
+    include: ["document", "employee", "department", withEmployeeName("assignedByUser")],
     order: [["createdAt", "DESC"]],
     limit,
     offset,

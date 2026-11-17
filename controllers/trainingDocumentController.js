@@ -1,6 +1,7 @@
 const db = require("../models");
 const AppError = require("../utils/AppError");
 const catchAsync = require("../utils/catchAsync");
+const { withEmployeeName } = require("../utils/userInclude");
 const { sendSuccess, sendDeleted } = require("../utils/apiResponse");
 const { parsePagination, buildPaginationMeta } = require("../utils/pagination");
 const hasPermission = require("../utils/hasPermission");
@@ -47,14 +48,6 @@ const getMyUploads = catchAsync(async (req, res) => {
   return sendSuccess(res, 200, rows, buildPaginationMeta(page, limit, count));
 });
 
-// The uploader's name for the HR list; kept for uploaders who have since left or been deleted.
-const UPLOADER = {
-  association: "uploadedByUser",
-  attributes: ["id"],
-  paranoid: false,
-  include: { association: "employee", attributes: ["id", "fullName"], paranoid: false },
-};
-
 const listAllDocuments = catchAsync(async (req, res) => {
   const { page, limit, offset } = parsePagination(req.query);
 
@@ -65,7 +58,7 @@ const listAllDocuments = catchAsync(async (req, res) => {
 
   const { rows, count } = await db.TrainingDocument.findAndCountAll({
     where,
-    include: ["category", UPLOADER],
+    include: ["category", withEmployeeName("uploadedByUser")],
     order: [["createdAt", "DESC"]],
     limit,
     offset,
