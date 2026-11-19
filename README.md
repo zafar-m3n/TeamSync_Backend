@@ -40,7 +40,7 @@ Email goes out on three events only: a submitted request (to the employee's mana
 
 ### Performance Reviews — `/goals`
 
-A lightweight monthly, numeric goal system driven entirely by managers. A manager creates and edits goals for a direct report (title, description, numeric target, target date); at the end of the cycle the manager records the actual achieved value, and the system calculates percent complete (achieved ÷ target) to two decimal places. There are no written reviews, comments, or rating scales. Employees have view-only access to their own goals, managers see their team's, and HR/Admin see all. A manager can delete the goals they set; HR/Admin can delete any goal. A goal records which manager created it, but every access check uses the employee's *current* manager, so goals follow reporting-line changes.
+A lightweight monthly, numeric goal system driven entirely by managers. A manager creates and edits goals for a direct report (title, description, numeric target, target date); at the end of the cycle the manager records the actual achieved value, and the system calculates percent complete (achieved ÷ target) to two decimal places. There are no written reviews, comments, or rating scales. Employees have view-only access to their own goals, managers see their team's, and HR/Admin see all. A manager can delete the goals of their current direct reports; HR/Admin can delete any goal. A goal records which manager created it, but every access check (view, edit, record actual, delete) uses the employee's *current* manager, so goals follow reporting-line changes.
 
 ### Training — `/training-categories`, `/training-documents`, `/training-assignments`
 
@@ -196,9 +196,9 @@ npm start
 
 The service holds no state of its own apart from the `uploads/` directory and the database. Run it behind a reverse proxy that terminates TLS. Back up the MySQL database and the `uploads/` directory together — profile and training files are only on disk.
 
-## Known Limitations
+## Business Rules
 
-These are deliberate boundaries of the current version, not defects. Staff who administer or use TeamSync should read this before relying on a behavior the system doesn't have.
+These behaviours are intentional. Staff who administer or use TeamSync should know them before relying on a behaviour the system doesn't have.
 
 - **A forgotten clock-out is filled in at the shift's end.** If someone clocks in but never clocks out, the nightly job sets their clock-out to the shift's end time, so the record doesn't show when they actually left.
 - **Cancelling an approved half-day leave does not undo the attendance change.** If a half-day leave set that day to Half-day and the leave is later cancelled, the attendance record stays Half-day. The system can't tell whether the person actually worked, so it leaves the record for HR to adjust.
@@ -208,9 +208,11 @@ These are deliberate boundaries of the current version, not defects. Staff who a
 - **Admin permission-management access is locked on.** The permission that controls the Permissions screen cannot be switched off for the Admin role. This is a safety lock so no one can lock everyone out of permission configuration.
 - **Account and record safety guards.** Nobody can delete or deactivate their own account; an employee who manages people, heads a department or has pending leave can't be deleted; departments, roles, shifts, leave types and training categories can't be deleted while still in use (reassign first).
 - **Initial passwords are set and communicated by HR/Admin.** When an employee is created, HR/Admin type that person's starting password and pass it on themselves; no email is sent.
-- **Performance goals follow the current reporting line.** A goal displays the manager who created it, but who can view or edit it always tracks the employee's *current* manager. If someone's manager changes, their existing goals move to the new manager.
-- **Department-wide training assignment requires being the department head.** A manager can assign training to a whole department only if they are that department's designated head; otherwise they assign to individual direct reports.
+- **Performance goals follow the current reporting line.** A goal displays the manager who created it, but who can view, edit, record progress on or delete it always tracks the employee's *current* manager. If someone's manager changes, their existing goals move to the new manager, and the previous manager loses access.
+- **Department-wide training assignment requires being the department head.** A manager can assign training to a whole department only if they are that department's designated head; otherwise they assign to individual direct reports. Only the Manager role has the assign permission by default, so HR and Admin don't assign training.
 - **The login dashboard has three fixed layouts** — Employee, Manager, and HR/Admin. A user on a custom role sees the Employee dashboard layout, regardless of what that custom role's permissions allow elsewhere; without `attendance.clock` it shows today's attendance instead of the clock panel.
 - **The HR/Admin "recent activity" feed is a summary, not an audit log.** It is assembled from recent records (new employees, new leave requests, new training assignments) for a quick at-a-glance view. It does not capture every kind of action and is not a tamper-proof history.
 
-Beyond the above, the following are explicitly out of scope for this version per the product scope document: payroll processing; recruitment/hiring; training completion tracking, quizzes, or assessments; multi-role accounts; multiple managers per employee; leave-request file attachments; written self-review comments in Performance Reviews; "forgot password" or forced-reset flows; an audit log; employee self-registration; and dark mode.
+## Out of Scope
+
+The following are explicitly out of scope for this version per the product scope document: payroll processing; recruitment/hiring; training completion tracking, quizzes, or assessments; multi-role accounts; multiple managers per employee; leave-request file attachments; written self-review comments in Performance Reviews; "forgot password" or forced-reset flows; an audit log; and employee self-registration.

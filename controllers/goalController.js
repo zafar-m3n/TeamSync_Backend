@@ -171,10 +171,11 @@ const deleteGoal = catchAsync(async (req, res) => {
     throw new AppError("Goal not found", 404, "NOT_FOUND");
   }
 
-  // managerId is the setting manager's user id, not an employee id.
+  // Like view and edit, deleting follows the employee's *current* manager, not the
+  // manager who set the goal; anyone who can see every goal (HR/Admin) can delete any.
   const canDeleteAny = await hasPermission(req.user.roleId, "goals", "view_all");
-  if (!canDeleteAny && goal.managerId !== req.user.id) {
-    throw new AppError("You can only delete goals you set", 403, "NOT_GOAL_OWNER");
+  if (!canDeleteAny) {
+    await assertIsDirectReport(req, goal.employeeId);
   }
 
   await goal.destroy();
